@@ -29,7 +29,7 @@ export default {
     },
     extra: {
       userId: process.env.USER_ID,
-      serverUrl: process.env.SERVER_URL || 'http://localhost:8080',
+      serverUrl: process.env.SERVER_URL || 'http://localhost:8000',
     },
   },
 };

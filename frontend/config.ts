@@ -10,7 +10,7 @@ import { MockDataService } from './services/mockApiService';
 export const DEBUG_MODE = true;
 
 export const SERVER_URL: string =
-  Constants.expoConfig?.extra?.serverUrl ?? 'http://localhost:8080';
+  Constants.expoConfig?.extra?.serverUrl ?? 'http://localhost:8000';
 export const USER_ID: string =
   Constants.expoConfig?.extra?.userId ?? '';
 
