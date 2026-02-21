@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Generator
-
 from openai import OpenAI
 
 from ..config import OPENAI_API_KEY, LLM_MODEL, PROMPT_DIR
@@ -53,26 +51,3 @@ def generate(
         temperature=0.8,
     )
     return response.choices[0].message.content or ""
-
-
-def stream(
-    object_name: str,
-    location: str,
-    time: str,
-    interest: str,
-) -> Generator[str, None, None]:
-    """Stream a tour guide description, yielding text chunks as they arrive."""
-    client = _get_client()
-    response = client.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[
-            {"role": "system", "content": _load_prompt("system.md")},
-            {"role": "user", "content": _build_user_prompt(object_name, location, time, interest)},
-        ],
-        temperature=0.8,
-        stream=True,
-    )
-    for chunk in response:
-        delta = chunk.choices[0].delta
-        if delta.content:
-            yield delta.content

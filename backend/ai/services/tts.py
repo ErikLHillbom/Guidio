@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Iterator
-
 from elevenlabs import ElevenLabs
 
 from ..config import ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, TTS_MODEL
@@ -26,17 +24,3 @@ def synthesize(text: str, voice_id: str | None = None) -> bytes:
         output_format="mp3_44100_128",
     )
     return b"".join(audio_iter)
-
-
-def synthesize_stream(
-    text: str,
-    voice_id: str | None = None,
-) -> Iterator[bytes]:
-    """Convert text to speech, streaming audio chunks back."""
-    client = _get_client()
-    yield from client.text_to_speech.convert_as_stream(
-        text=text,
-        voice_id=voice_id or ELEVENLABS_VOICE_ID,
-        model_id=TTS_MODEL,
-        output_format="mp3_44100_128",
-    )
