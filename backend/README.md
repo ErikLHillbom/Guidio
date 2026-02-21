@@ -10,10 +10,17 @@ docker compose up -d --build
 
 # Seed mock data (one-time)
 docker compose exec app python scripts/seed_db.py
+```
 
-# Seed with actual data 
+For populating the database locally:
+```bash
 docker compose exec app python scripts/import_parsed.py
-
+```
+Or:
+```bash
+uv sync
+source .venv/bin/activate
+uv run python scripts/import_parsed.py
 ```
 
 For local development without Docker:
