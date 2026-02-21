@@ -40,11 +40,6 @@ async def fetch_pois_from_db(
                 longitude=doc["location"]["coordinates"][0],
                 categories=doc.get("categories", []),
                 image_url=doc.get("image_url"),
-                text=doc.get("text"),
-                text_audio=doc.get("text_audio"),
-                audio_file=doc.get("audio_file"),
-                summary=doc.get("summary"),
-                created_at=doc.get("created_at"),
             )
         )
     return pois

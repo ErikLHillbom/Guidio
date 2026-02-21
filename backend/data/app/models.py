@@ -1,5 +1,3 @@
-from datetime import datetime
-
 from pydantic import BaseModel, Field
 
 
@@ -19,11 +17,6 @@ class PointOfInterest(BaseModel):
     longitude: float
     categories: list[str] = []
     image_url: str | None = None
-    text: str | None = None
-    text_audio: str | None = None
-    audio_file: str | None = None
-    summary: str | None = None
-    created_at: datetime | None = None
 
 
 class LocationResponse(BaseModel):
