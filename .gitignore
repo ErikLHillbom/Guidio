@@ -2,8 +2,5 @@ thinking.txt
 .env*
 __pycache__/
 *.pyc
-*.mp3
-uv.lock
-pyproject.toml
-.python-version
 .venv
+.codex/
