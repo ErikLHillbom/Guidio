@@ -8,6 +8,5 @@ Reference material:
 Context
 - direction from client: <|DIRECTION|>
 - location: <|LOCATION|>
-- coordinates: <|LATITUDE|>
-- time: <|TIME|>
+- coordinates: <|LATITUDE|>, <|LONGITUDE|>
 - client interest: <|INTEREST|>

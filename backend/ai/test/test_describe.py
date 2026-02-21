@@ -14,11 +14,11 @@ from ai import Information, describe
 ctx = Information(
     title="Sagrada Família",
     latitude=41.4036,
+    longitude=2.1744,
     summary="The Basílica de la Sagrada Família is a large unfinished Roman Catholic minor basilica in Barcelona, designed by Antoni Gaudí.",
     text="The Basílica de la Sagrada Família, shortened as the Sagrada Família, is a large unfinished Roman Catholic minor basilica in the Eixample district of Barcelona, Catalonia, Spain. Designed by the Spanish architect Antoni Gaudí (1852–1926), his work on the building is part of a UNESCO World Heritage Site. On 7 November 2010, Pope Benedict XVI consecrated the church and proclaimed it a minor basilica.",
     direction="to your left",
     location="Barcelona, Spain",
-    time="afternoon",
     interest="architecture and history",
 )
 
