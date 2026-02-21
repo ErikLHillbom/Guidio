@@ -25,7 +25,7 @@ export function watchLocation(
   return Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      distanceInterval: 25,
+      distanceInterval: 5,
       timeInterval: 2000,
     },
     (location) => {
