@@ -5,7 +5,7 @@ from .models import Information
 from typing import Generator, Iterator
 from .utils import _buffer_sentences
 
-from . import llm, tts
+from .services import llm, tts
 
 
 def describe(ctx: Information) -> Generator[dict, None, None]:

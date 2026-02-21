@@ -1,7 +1,7 @@
 """Guidio AI — proactive tour guide powered by LLM + ElevenLabs TTS."""
 
 from .models import Information
-from .orchestrator import describe
+from .main import describe
 
 __all__ = [
     "Information",

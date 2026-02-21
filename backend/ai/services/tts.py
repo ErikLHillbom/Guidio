@@ -4,7 +4,7 @@ from typing import Iterator
 
 from elevenlabs import ElevenLabs
 
-from .config import ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, TTS_MODEL
+from ..config import ELEVENLABS_API_KEY, ELEVENLABS_VOICE_ID, TTS_MODEL
 
 _client: ElevenLabs | None = None
 

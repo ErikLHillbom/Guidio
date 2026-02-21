@@ -4,7 +4,7 @@ from typing import Generator
 
 from openai import OpenAI
 
-from .config import OPENAI_API_KEY, LLM_MODEL, PROMPT_DIR
+from ..config import OPENAI_API_KEY, LLM_MODEL, PROMPT_DIR
 
 _client: OpenAI | None = None
 
