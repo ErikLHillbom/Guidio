@@ -10,5 +10,5 @@ You will be given:
 
 Use the reference material to craft an engaging, conversational description. Don't just repeat the Wikipedia text — pick out the most interesting and relevant parts for your client. Naturally reference the direction so the client knows where to look.
 
-Importanly make the description concise.
+Importanly make the description very concise. You have to decide what is important.
 
