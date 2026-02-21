@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Path, Response
+from fastapi import APIRouter, Header, HTTPException, Path, Response
 
 from app.config import settings
 from app.models import (
@@ -29,13 +29,16 @@ _DEFAULT_SESSION = "default"
     response_model=LocationResponse,
     responses={204: {"description": "Location unchanged – no new data"}},
 )
-async def update_location(req: LocationRequest) -> LocationResponse | Response:
+async def update_location(
+    req: LocationRequest,
+    x_session_id: str | None = Header(default=None, alias="X-Session-Id"),
+) -> LocationResponse | Response:
     """Receive the user's current location.
 
     • If the user hasn't moved significantly → **204 No Content** (nothing to do).
     • Otherwise → query the POI database and return new points of interest.
     """
-    session = _DEFAULT_SESSION
+    session = (x_session_id or _DEFAULT_SESSION).strip() or _DEFAULT_SESSION
     last = _last_positions.get(session)
 
     # Check whether the user has moved enough to warrant a new fetch

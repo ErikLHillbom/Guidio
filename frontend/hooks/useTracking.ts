@@ -63,12 +63,14 @@ export function useTracking({ debugMode, fallbackLocation }: UseTrackingOptions)
 
       updatePosition(initial);
 
-      if (!debugMode && onGPSUpdate) {
+      try {
         const sub = await watchLocation((coords) => {
           updatePosition(coords);
-          onGPSUpdate(coords);
+          onGPSUpdate?.(coords);
         });
         locationSub.current = sub;
+      } catch {
+        // In debug mode we can continue with joystick-driven movement.
       }
 
       return initial;

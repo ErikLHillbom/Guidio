@@ -39,7 +39,6 @@ export default function HomeScreen() {
     gridLines,
     audioProgress,
     loadPOIs,
-    rebuildIndex,
     startInterval,
     stopInterval,
   } = useProximity({
@@ -57,11 +56,7 @@ export default function HomeScreen() {
       return;
     }
 
-    const onGPSUpdate = (coords: Coordinates) => {
-      rebuildIndex(coords, USER_ID);
-    };
-
-    const initialLocation = await start(onGPSUpdate);
+    const initialLocation = await start();
     if (!initialLocation) return;
 
     try {
@@ -75,7 +70,7 @@ export default function HomeScreen() {
 
     startInterval();
     finishLoading();
-  }, [tracking, stop, stopInterval, start, loadPOIs, startInterval, finishLoading, addMessage, rebuildIndex]);
+  }, [tracking, stop, stopInterval, start, loadPOIs, startInterval, finishLoading, addMessage]);
 
   const handleJoystickMove = useCallback(
     (coords: Coordinates) => {

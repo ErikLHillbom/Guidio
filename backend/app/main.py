@@ -1,8 +1,10 @@
 import uvicorn
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app import db
 from app.config import settings
@@ -31,6 +33,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve generated tour audio files so frontend can fetch URLs built from `audio_file`.
+audio_output_candidates = [
+    Path("/app/ai/test/output"),
+    Path(__file__).resolve().parents[1] / "ai" / "test" / "output",
+]
+for candidate in audio_output_candidates:
+    if candidate.exists() and candidate.is_dir():
+        app.mount(
+            "/app/ai/test/output",
+            StaticFiles(directory=str(candidate)),
+            name="audio-output",
+        )
+        break
 
 app.include_router(locations.router, prefix="/api/v1")
 

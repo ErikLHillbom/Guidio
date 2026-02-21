@@ -1,11 +1,9 @@
-import * as FileSystem from 'expo-file-system';
 import { Coordinates, GuideResponse, POIDetail, PointOfInterest } from '../types';
 import { geodesicDistanceMeters } from '../utils/geo';
 import { DataService } from './DataService';
 
 const API_PREFIX = '/api/v1/locations';
 const POI_CACHE_RADIUS_M = 200;
-const AUDIO_CACHE_DIR = `${FileSystem.cacheDirectory}guidio-audio/`;
 
 interface BackendPOI {
   entity_id: string;
@@ -34,23 +32,38 @@ function mapPOI(raw: BackendPOI): PointOfInterest {
   };
 }
 
+function toPlayableAudioUrl(serverUrl: string, audioFile: string): string {
+  const value = audioFile.trim();
+  if (!value) return '';
+
+  if (value.startsWith('http://') || value.startsWith('https://')) {
+    return value;
+  }
+
+  const normalized = value.replace(/\\/g, '/');
+  if (normalized.startsWith('/app/ai/test/output/')) {
+    return `${serverUrl}${normalized}`;
+  }
+
+  const filename = normalized.split('/').pop();
+  if (filename && filename.toLowerCase().endsWith('.mp3')) {
+    return `${serverUrl}/app/ai/test/output/${encodeURIComponent(filename)}`;
+  }
+
+  const separator = normalized.startsWith('/') ? '' : '/';
+  return `${serverUrl}${separator}${normalized}`;
+}
+
 export class RealDataService implements DataService {
   private serverUrl: string;
   private cachedPois: PointOfInterest[] = [];
   private cacheOrigin: Coordinates | null = null;
   private detailCache = new Map<string, BackendDetailResponse>();
-  private audioDirReady: Promise<void>;
+  private runtimeSessionId: string;
 
   constructor(serverUrl: string) {
     this.serverUrl = serverUrl;
-    this.audioDirReady = this.ensureAudioCacheDir();
-  }
-
-  private async ensureAudioCacheDir() {
-    const info = await FileSystem.getInfoAsync(AUDIO_CACHE_DIR);
-    if (!info.exists) {
-      await FileSystem.makeDirectoryAsync(AUDIO_CACHE_DIR, { intermediates: true });
-    }
+    this.runtimeSessionId = `mobile-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   }
 
   private isPOICacheValid(coords: Coordinates): boolean {
@@ -58,20 +71,21 @@ export class RealDataService implements DataService {
     return geodesicDistanceMeters(this.cacheOrigin, coords) < POI_CACHE_RADIUS_M;
   }
 
-  private async downloadAndCacheAudio(entityId: string): Promise<string> {
-    await this.audioDirReady;
-    const localPath = `${AUDIO_CACHE_DIR}${entityId}.mp3`;
-
-    const existing = await FileSystem.getInfoAsync(localPath);
-    if (existing.exists) return localPath;
-
-    const url = `${this.serverUrl}${API_PREFIX}/audio/${entityId}`;
-    const result = await FileSystem.downloadAsync(url, localPath);
-    if (result.status !== 200) {
-      await FileSystem.deleteAsync(localPath, { idempotent: true });
-      throw new Error(`Audio download failed: ${result.status}`);
-    }
-    return localPath;
+  private async requestPoiUpdate(
+    coordinates: Coordinates,
+    sessionId: string,
+  ): Promise<Response> {
+    return fetch(`${this.serverUrl}${API_PREFIX}/update`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Session-Id': sessionId,
+      },
+      body: JSON.stringify({
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+      }),
+    });
   }
 
   private async fetchDetail(entityId: string): Promise<BackendDetailResponse> {
@@ -91,19 +105,24 @@ export class RealDataService implements DataService {
 
   // POST /api/v1/locations/update  { latitude, longitude }
   // Returns 200 with { latitude, longitude, points_of_interest } or 204 (no movement)
-  async fetchNearbyPOIs(coordinates: Coordinates, _userId: string): Promise<PointOfInterest[]> {
+  async fetchNearbyPOIs(coordinates: Coordinates, userId: string): Promise<PointOfInterest[]> {
     if (this.isPOICacheValid(coordinates)) {
       return this.cachedPois;
     }
+    const sessionId = userId.trim() || this.runtimeSessionId;
 
-    const response = await fetch(`${this.serverUrl}${API_PREFIX}/update`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-      }),
-    });
+    let response = await this.requestPoiUpdate(coordinates, sessionId);
+
+    if (response.status === 204 && this.cachedPois.length === 0) {
+      const nudgedLatitude = Math.max(
+        -90,
+        Math.min(90, coordinates.latitude + 0.00055),
+      );
+      response = await this.requestPoiUpdate(
+        { ...coordinates, latitude: nudgedLatitude },
+        sessionId,
+      );
+    }
 
     if (response.status === 204) {
       return this.cachedPois;
@@ -130,11 +149,7 @@ export class RealDataService implements DataService {
 
     let audioUrl = '';
     if (detail.audio_file) {
-      try {
-        audioUrl = await this.downloadAndCacheAudio(poiId);
-      } catch {
-        // Audio unavailable — guide will proceed without playback
-      }
+      audioUrl = toPlayableAudioUrl(this.serverUrl, detail.audio_file);
     }
 
     return {

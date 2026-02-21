@@ -4,6 +4,21 @@ import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
 
+const DEFAULT_CENTER = { latitude: 59.3293, longitude: 18.0686 };
+const MAP_RADIUS_M = 100;
+const M_PER_DEG_LAT = 111_320;
+
+function regionDeltasForRadius(
+  latitude: number,
+  radiusMeters: number,
+): { latitudeDelta: number; longitudeDelta: number } {
+  const latitudeDelta = (radiusMeters * 2) / M_PER_DEG_LAT;
+  const cosLat = Math.cos((latitude * Math.PI) / 180);
+  const metersPerDegreeLongitude = Math.max(M_PER_DEG_LAT * Math.abs(cosLat), 1);
+  const longitudeDelta = (radiusMeters * 2) / metersPerDegreeLongitude;
+  return { latitudeDelta, longitudeDelta };
+}
+
 function CalloutImage({ uri }: { uri: string }) {
   const [failed, setFailed] = useState(false);
   if (failed) return null;
@@ -41,24 +56,19 @@ export default function MapViewComponent({
   showCustomUserMarker,
   onPOIPress,
 }: Props) {
-  const initialRegion = userLocation
-    ? {
-        latitude: userLocation.latitude,
-        longitude: userLocation.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }
-    : {
-        latitude: 59.3293,
-        longitude: 18.0686,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      };
+  const center = userLocation ?? DEFAULT_CENTER;
+  const deltas = regionDeltasForRadius(center.latitude, MAP_RADIUS_M);
+  const region = {
+    latitude: center.latitude,
+    longitude: center.longitude,
+    latitudeDelta: deltas.latitudeDelta,
+    longitudeDelta: deltas.longitudeDelta,
+  };
 
   return (
     <MapView
       style={styles.map}
-      initialRegion={initialRegion}
+      region={region}
       showsUserLocation={!showCustomUserMarker}
       showsMyLocationButton={!showCustomUserMarker}
       showsCompass
@@ -89,8 +99,9 @@ export default function MapViewComponent({
           key={poi.id}
           coordinate={poi.coordinates}
           pinColor={getPinColor(poi.id, visitedIds, queuedIds)}
+          onCalloutPress={() => onPOIPress?.(poi)}
         >
-          <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
+          <Callout tooltip={false}>
             <View style={styles.callout}>
               <Text style={styles.calloutTitle}>{poi.name}</Text>
               {poi.imageUrl ? <CalloutImage uri={poi.imageUrl} /> : null}

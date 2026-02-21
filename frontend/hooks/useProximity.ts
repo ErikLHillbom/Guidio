@@ -6,11 +6,7 @@ import { isWithinProximity } from '../services/locationService';
 import { geodesicDistanceMeters } from '../utils/geo';
 import {
   getBucketKey,
-  getActiveKeys,
-  buildBucketIndex,
-  getActivePOIs,
   getGridLines,
-  BucketIndex,
   BucketGridLines,
 } from '../services/bucketService';
 
@@ -38,9 +34,9 @@ export function useProximity({
   }, []);
 
   const poisRef = useRef<PointOfInterest[]>([]);
+  const allPoisRef = useRef<PointOfInterest[] | null>(null);
   const visitedPoiIds = useRef<Set<string>>(new Set());
   const detectedPoiIds = useRef<Set<string>>(new Set());
-  const bucketIndexRef = useRef<BucketIndex | null>(null);
   const currentBucketRef = useRef('');
   const guideQueue = useRef<PointOfInterest[]>([]);
   const guideRunning = useRef(false);
@@ -157,15 +153,10 @@ export function useProximity({
 
   const updateBucket = useCallback(
     (pos: Coordinates) => {
-      if (!bucketIndexRef.current) return;
       const key = getBucketKey(pos);
       if (key === currentBucketRef.current) return;
 
       currentBucketRef.current = key;
-      const keys = getActiveKeys(pos);
-      const active = getActivePOIs(bucketIndexRef.current, keys);
-      poisRef.current = active;
-      setPois(active);
       if (debugMode) setGridLines(getGridLines(pos));
     },
     [debugMode],
@@ -205,39 +196,23 @@ export function useProximity({
       detectedPoiIds.current.clear();
       setVisitedIds(new Set());
       setQueuedIds(new Set());
-      bucketIndexRef.current = null;
       currentBucketRef.current = '';
       setGridLines(null);
-      service.clearCache();
+      if (!allPoisRef.current) {
+        service.clearCache();
+        allPoisRef.current = await service.fetchNearbyPOIs(coords, userId);
+      }
 
-      const allPois = await service.fetchNearbyPOIs(coords, userId);
-      const index = buildBucketIndex(allPois);
-      bucketIndexRef.current = index;
-
-      const keys = getActiveKeys(coords);
-      const active = getActivePOIs(index, keys);
+      const allPois = allPoisRef.current ?? [];
       currentBucketRef.current = getBucketKey(coords);
-      setPois(active);
-      poisRef.current = active;
+      setPois(allPois);
+      poisRef.current = allPois;
 
       if (debugMode) setGridLines(getGridLines(coords));
 
-      return { total: allPois.length, nearby: active.length };
+      return { total: allPois.length, nearby: allPois.length };
     },
     [service, debugMode],
-  );
-
-  const rebuildIndex = useCallback(
-    async (coords: Coordinates, userId: string) => {
-      try {
-        const allPois = await service.fetchNearbyPOIs(coords, userId);
-        bucketIndexRef.current = buildBucketIndex(allPois);
-        currentBucketRef.current = '';
-      } catch {
-        // Backend not available
-      }
-    },
-    [service],
   );
 
   useEffect(() => {
@@ -251,7 +226,6 @@ export function useProximity({
     gridLines,
     audioProgress,
     loadPOIs,
-    rebuildIndex,
     startInterval,
     stopInterval,
   } as const;
