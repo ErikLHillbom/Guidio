@@ -1,7 +1,7 @@
 import * as Location from 'expo-location';
 import { Coordinates } from '../types';
 
-const PROXIMITY_THRESHOLD_METERS = 300;
+const PROXIMITY_THRESHOLD_METERS = 100;
 
 export async function requestLocationPermission(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();

@@ -8,6 +8,8 @@ export interface PointOfInterest {
   name: string;
   description?: string;
   coordinates: Coordinates;
+  imageUrl?: string;
+  categories?: string[];
 }
 
 export interface GuideResponse {

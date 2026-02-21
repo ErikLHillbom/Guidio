@@ -15,3 +15,16 @@ The user flow is: Open app --> Display map --> Press "Start guide" button --> Sh
 
 Mark visited suggestions as "visited" so that we don't request info on it many times.
 
+Have different admissable distances based on category.
+
+When you come closer than 300m to an object, you get the detailed information.
+You can also get the detailed information by clicking on the context window of a pin.
+
+Add the image URL:s to the pins.
+
+"Use the image URL:s to render images in the pin context windows instead of the current placeholders."
+
+Use bucketing to increase performance.
+- Divide the entire world into 2 km square buckets (poles can be a buffer zone)
+- Load the points of interest in the current and adjacent buckets
+- In debug mode, show these gridlines on the map

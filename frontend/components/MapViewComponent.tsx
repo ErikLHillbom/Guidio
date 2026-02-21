@@ -63,10 +63,12 @@ export default function MapViewComponent({ userLocation, pois, visitedIds }: Pro
           <Callout tooltip={false}>
             <View style={styles.callout}>
               <Text style={styles.calloutTitle}>{poi.name}</Text>
-              <Image
-                source={{ uri: 'https://placehold.co/200x120/e0e0e0/999999?text=Photo' }}
-                style={styles.calloutImage}
-              />
+              {poi.imageUrl ? (
+                <Image
+                  source={{ uri: poi.imageUrl }}
+                  style={styles.calloutImage}
+                />
+              ) : null}
               {poi.description && (
                 <Text style={styles.calloutDescription}>{poi.description}</Text>
               )}
