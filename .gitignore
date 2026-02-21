@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .venv
 .codex/
+.DS_Store
+guidio_data.egg-info/
