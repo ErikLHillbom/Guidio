@@ -1,3 +1,1 @@
-# Guidio – AI Service
-
-> LLM-powered microservice (owned by another team member).
+# Guidio – Data Service
