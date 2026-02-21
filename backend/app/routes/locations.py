@@ -1,8 +1,17 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Path, Response
 
 from app.config import settings
-from app.models import LocationRequest, LocationResponse, PoiDetail
-from app.services.database import fetch_poi_detail, fetch_pois_from_db
+from app.models import (
+    CategoryLocationsResponse,
+    LocationRequest,
+    LocationResponse,
+    PoiDetail,
+)
+from app.services.database import (
+    fetch_poi_detail,
+    fetch_pois_by_category,
+    fetch_pois_from_db,
+)
 from app.utils import haversine_m
 
 router = APIRouter(prefix="/locations", tags=["locations"])
@@ -60,3 +69,25 @@ async def get_poi_detail(entity_id: str) -> PoiDetail:
     if detail is None:
         raise HTTPException(status_code=404, detail="POI not found")
     return detail
+
+
+@router.get("/by-category/{category}", response_model=CategoryLocationsResponse)
+async def get_pois_by_category(
+    category: str = Path(..., min_length=1, description="Category to filter by"),
+) -> CategoryLocationsResponse:
+    """Return up to 50 POIs for a category, ranked by text relevance."""
+    normalized_category = category.strip()
+    if not normalized_category:
+        raise HTTPException(status_code=400, detail="Category must not be empty")
+
+    try:
+        pois = await fetch_pois_by_category(normalized_category, limit=50)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail=f"Database service error: {exc}"
+        ) from exc
+
+    return CategoryLocationsResponse(
+        category=normalized_category,
+        points_of_interest=pois,
+    )
