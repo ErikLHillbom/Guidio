@@ -14,11 +14,14 @@ import {
   BucketGridLines,
 } from '../services/bucketService';
 
+const REFETCH_DISTANCE_M = 300;
+
 interface UseProximityOptions {
   service: DataService;
   userLocationRef: React.RefObject<Coordinates | null>;
   addMessage: (text: string) => void;
   debugMode: boolean;
+  userId: string;
 }
 
 export function useProximity({
@@ -26,6 +29,7 @@ export function useProximity({
   userLocationRef,
   addMessage,
   debugMode,
+  userId,
 }: UseProximityOptions) {
   const [pois, setPois] = useState<PointOfInterest[]>([]);
   const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
@@ -47,6 +51,8 @@ export function useProximity({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentPlayer = useRef<AudioPlayer | null>(null);
   const progressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastFetchOrigin = useRef<Coordinates | null>(null);
+  const refetchInFlight = useRef(false);
 
   const playAudio = useCallback((uri: string): Promise<void> => {
     return new Promise<void>((resolve) => {
@@ -171,6 +177,38 @@ export function useProximity({
     [debugMode],
   );
 
+  const maybeRefetch = useCallback(
+    async (pos: Coordinates) => {
+      if (refetchInFlight.current) return;
+      if (
+        lastFetchOrigin.current &&
+        geodesicDistanceMeters(lastFetchOrigin.current, pos) < REFETCH_DISTANCE_M
+      ) {
+        return;
+      }
+      refetchInFlight.current = true;
+      try {
+        const allPois = await service.fetchNearbyPOIs(pos, userId);
+        const index = buildBucketIndex(allPois);
+        bucketIndexRef.current = index;
+        currentBucketRef.current = '';
+        lastFetchOrigin.current = pos;
+
+        const keys = getActiveKeys(pos);
+        const active = getActivePOIs(index, keys);
+        currentBucketRef.current = getBucketKey(pos);
+        poisRef.current = active;
+        setPois(active);
+        if (debugMode) setGridLines(getGridLines(pos));
+      } catch {
+        // Backend unavailable
+      } finally {
+        refetchInFlight.current = false;
+      }
+    },
+    [service, userId, debugMode],
+  );
+
   const startInterval = useCallback(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
@@ -178,8 +216,9 @@ export function useProximity({
       if (!pos) return;
       updateBucket(pos);
       checkProximity(pos);
+      maybeRefetch(pos);
     }, 300);
-  }, [userLocationRef, updateBucket, checkProximity]);
+  }, [userLocationRef, updateBucket, checkProximity, maybeRefetch]);
 
   const stopInterval = useCallback(() => {
     if (intervalRef.current) {
@@ -213,6 +252,7 @@ export function useProximity({
       const allPois = await service.fetchNearbyPOIs(coords, userId);
       const index = buildBucketIndex(allPois);
       bucketIndexRef.current = index;
+      lastFetchOrigin.current = coords;
 
       const keys = getActiveKeys(coords);
       const active = getActivePOIs(index, keys);

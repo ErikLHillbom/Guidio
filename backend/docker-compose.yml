@@ -6,6 +6,8 @@ services:
       - "8000:8000"
     environment:
       - DATA_MONGO_URL=mongodb://mongo:27017
+      - DATA_DEFAULT_RADIUS_M=1000
+      - DATA_MIN_MOVE_THRESHOLD_M=20
       - PYTHONUNBUFFERED=1
     depends_on:
       - mongo

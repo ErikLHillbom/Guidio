@@ -1,8 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { DEBUG_MODE, USER_ID, dataService } from '../config';
-import { MOCK_START_LOCATION } from '../services/mockApiService';
+import { MOCK_GPS, FALLBACK_LOCATION, USER_ID, dataService } from '../config';
 import { Coordinates, POIDetail, PointOfInterest } from '../types';
 
 import { useMessages } from '../hooks/useMessages';
@@ -28,8 +27,8 @@ export default function HomeScreen() {
     stop,
     finishLoading,
   } = useTracking({
-    debugMode: DEBUG_MODE,
-    fallbackLocation: MOCK_START_LOCATION,
+    debugMode: MOCK_GPS,
+    fallbackLocation: FALLBACK_LOCATION,
   });
 
   const {
@@ -46,7 +45,8 @@ export default function HomeScreen() {
     service: dataService,
     userLocationRef,
     addMessage,
-    debugMode: DEBUG_MODE,
+    debugMode: MOCK_GPS,
+    userId: USER_ID,
   });
 
   const handleStart = useCallback(async () => {
@@ -117,8 +117,8 @@ export default function HomeScreen() {
         pois={pois}
         visitedIds={visitedIds}
         queuedIds={queuedIds}
-        gridLines={DEBUG_MODE ? gridLines : null}
-        showCustomUserMarker={DEBUG_MODE}
+        gridLines={MOCK_GPS ? gridLines : null}
+        showCustomUserMarker={MOCK_GPS}
         onPOIPress={handlePOIPress}
       />
 
@@ -142,10 +142,10 @@ export default function HomeScreen() {
         onClose={handleDetailClose}
       />
 
-      {DEBUG_MODE && (
+      {MOCK_GPS && (
         <View style={styles.joystickLayer} pointerEvents="box-none">
           <DebugJoystick
-            position={userLocation ?? MOCK_START_LOCATION}
+            position={userLocation ?? FALLBACK_LOCATION}
             onMove={handleJoystickMove}
             disabled={!tracking}
           />

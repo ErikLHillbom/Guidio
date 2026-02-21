@@ -29,13 +29,6 @@ export function useTracking({ debugMode, fallbackLocation }: UseTrackingOptions)
     const granted = await requestLocationPermission();
 
     if (debugMode) {
-      if (granted) {
-        try {
-          return await getCurrentLocation();
-        } catch {
-          return fallbackLocation;
-        }
-      }
       return fallbackLocation;
     }
 

@@ -1,11 +1,9 @@
-import * as FileSystem from 'expo-file-system';
 import { Coordinates, GuideResponse, POIDetail, PointOfInterest } from '../types';
 import { geodesicDistanceMeters } from '../utils/geo';
 import { DataService } from './DataService';
 
 const API_PREFIX = '/api/v1/locations';
-const POI_CACHE_RADIUS_M = 200;
-const AUDIO_CACHE_DIR = `${FileSystem.cacheDirectory}guidio-audio/`;
+const POI_CACHE_RADIUS_M = 400;
 
 interface BackendPOI {
   entity_id: string;
@@ -39,18 +37,9 @@ export class RealDataService implements DataService {
   private cachedPois: PointOfInterest[] = [];
   private cacheOrigin: Coordinates | null = null;
   private detailCache = new Map<string, BackendDetailResponse>();
-  private audioDirReady: Promise<void>;
 
   constructor(serverUrl: string) {
     this.serverUrl = serverUrl;
-    this.audioDirReady = this.ensureAudioCacheDir();
-  }
-
-  private async ensureAudioCacheDir() {
-    const info = await FileSystem.getInfoAsync(AUDIO_CACHE_DIR);
-    if (!info.exists) {
-      await FileSystem.makeDirectoryAsync(AUDIO_CACHE_DIR, { intermediates: true });
-    }
   }
 
   private isPOICacheValid(coords: Coordinates): boolean {
@@ -58,20 +47,8 @@ export class RealDataService implements DataService {
     return geodesicDistanceMeters(this.cacheOrigin, coords) < POI_CACHE_RADIUS_M;
   }
 
-  private async downloadAndCacheAudio(entityId: string): Promise<string> {
-    await this.audioDirReady;
-    const localPath = `${AUDIO_CACHE_DIR}${entityId}.mp3`;
-
-    const existing = await FileSystem.getInfoAsync(localPath);
-    if (existing.exists) return localPath;
-
-    const url = `${this.serverUrl}${API_PREFIX}/audio/${entityId}`;
-    const result = await FileSystem.downloadAsync(url, localPath);
-    if (result.status !== 200) {
-      await FileSystem.deleteAsync(localPath, { idempotent: true });
-      throw new Error(`Audio download failed: ${result.status}`);
-    }
-    return localPath;
+  private audioUrl(entityId: string): string {
+    return `${this.serverUrl}${API_PREFIX}/audio/${entityId}`;
   }
 
   private async fetchDetail(entityId: string): Promise<BackendDetailResponse> {
@@ -89,8 +66,6 @@ export class RealDataService implements DataService {
     return data;
   }
 
-  // POST /api/v1/locations/update  { latitude, longitude }
-  // Returns 200 with { latitude, longitude, points_of_interest } or 204 (no movement)
   async fetchNearbyPOIs(coordinates: Coordinates, _userId: string): Promise<PointOfInterest[]> {
     if (this.isPOICacheValid(coordinates)) {
       return this.cachedPois;
@@ -119,8 +94,6 @@ export class RealDataService implements DataService {
     return pois;
   }
 
-  // GET /api/v1/locations/detail/{entity_id}
-  // text_audio → transcription, audio downloaded & cached locally
   async fetchGuideInfo(
     poiId: string,
     poiName: string,
@@ -128,25 +101,15 @@ export class RealDataService implements DataService {
   ): Promise<GuideResponse> {
     const detail = await this.fetchDetail(poiId);
 
-    let audioUrl = '';
-    if (detail.audio_file) {
-      try {
-        audioUrl = await this.downloadAndCacheAudio(poiId);
-      } catch {
-        // Audio unavailable — guide will proceed without playback
-      }
-    }
-
     return {
       poiId,
       poiName,
       transcription: detail.text_audio ?? '',
-      audioUrl,
+      audioUrl: detail.audio_file ? this.audioUrl(poiId) : '',
       imageUrl: '',
     };
   }
 
-  // GET /api/v1/locations/detail/{entity_id}
   async fetchPOIDetail(poiId: string): Promise<POIDetail> {
     const data = await this.fetchDetail(poiId);
     return {
