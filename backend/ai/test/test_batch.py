@@ -28,7 +28,7 @@ def load_information(path: Path) -> Information:
         longitude=data["longitude"],
         summary=data.get("summary", ""),
         text=data.get("text", ""),
-        direction="ahead",
+        direction="",
         location="Stockholm, Sweden",
         interest="history and culture",
     )
