@@ -27,6 +27,13 @@ class LocationResponse(BaseModel):
     points_of_interest: list[PointOfInterest]
 
 
+class CategoryLocationsResponse(BaseModel):
+    """Response containing points of interest for a specific category."""
+
+    category: str
+    points_of_interest: list[PointOfInterest]
+
+
 class PoiDetail(BaseModel):
     """Detailed content for a single POI (text + audio)."""
 
