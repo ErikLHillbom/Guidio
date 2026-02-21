@@ -18,7 +18,7 @@ load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 from ai import Information, describe
 
-PARSED_DIR = Path(__file__).resolve().parents[2] / "data" / "scripts" / "parsed"
+PARSED_DIR = Path(__file__).resolve().parents[2] / "scripts" / "parsed"
 OUTPUT_DIR = Path(__file__).parent / "output"
 DEFAULT_BATCH_SIZE = 10
 
