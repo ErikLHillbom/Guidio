@@ -32,10 +32,7 @@ def synthesize_stream(
     text: str,
     voice_id: str | None = None,
 ) -> Iterator[bytes]:
-    """Convert text to speech, streaming audio chunks back.
-
-    Useful for starting playback before the full audio is ready.
-    """
+    """Convert text to speech, streaming audio chunks back."""
     client = _get_client()
     yield from client.text_to_speech.convert_as_stream(
         text=text,
