@@ -28,7 +28,6 @@ def _build_user_prompt(ctx: Information) -> str:
         .replace("<|LONGITUDE|>", str(ctx.longitude))
         .replace("<|SUMMARY|>", ctx.summary)
         .replace("<|TEXT|>", ctx.text)
-        .replace("<|DIRECTION|>", ctx.direction)
         .replace("<|LOCATION|>", ctx.location)
         .replace("<|INTEREST|>", ctx.interest)
     )

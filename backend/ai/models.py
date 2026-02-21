@@ -8,7 +8,6 @@ class Information:
     longitude: float
     summary: str
     text: str
-    direction: str
     location: str
     interest: str
 
