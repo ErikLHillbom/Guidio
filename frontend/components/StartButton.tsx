@@ -89,10 +89,10 @@ export default function StartButton({ active, loading, audioProgress, onPress }:
           />
         </View>
       )}
-      {active ? (
-        <VoiceBars animate={audioProgress > 0} />
+      {isPlaying ? (
+        <VoiceBars animate={true} />
       ) : (
-        <Animated.Text style={styles.label}>START</Animated.Text>
+        <Animated.Text style={styles.label}>{active ? 'STOP' : 'START'}</Animated.Text>
       )}
     </Pressable>
   );
