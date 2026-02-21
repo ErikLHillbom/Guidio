@@ -56,10 +56,16 @@ const MOCK_GUIDE_TEXTS: Record<string, string> = {
   'poi-5': 'The Royal Gardens have been a public retreat since the 18th century. Every spring, the cherry trees bloom in spectacular fashion. In winter, locals gather here for ice skating.',
 };
 
+let cachedMockPOIs: PointOfInterest[] | null = null;
+
 const SIMULATED_DELAY_MS = 1500;
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function clearMockPOICache(): void {
+  cachedMockPOIs = null;
 }
 
 export async function mockFetchNearbyPOIs(
@@ -68,7 +74,10 @@ export async function mockFetchNearbyPOIs(
   _userId: string,
 ): Promise<PointOfInterest[]> {
   await delay(300);
-  return buildMockPOIs(coordinates);
+  if (!cachedMockPOIs) {
+    cachedMockPOIs = buildMockPOIs(coordinates);
+  }
+  return cachedMockPOIs;
 }
 
 export async function mockFetchGuideInfo(

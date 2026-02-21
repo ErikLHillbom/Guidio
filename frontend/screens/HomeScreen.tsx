@@ -3,9 +3,11 @@ import { Alert, StyleSheet, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as Location from 'expo-location';
 
+import { DEBUG_MODE } from '../config';
 import MapViewComponent from '../components/MapViewComponent';
 import StartButton from '../components/StartButton';
 import MessagePanel from '../components/MessagePanel';
+import DebugJoystick from '../components/DebugJoystick';
 import {
   requestLocationPermission,
   getCurrentLocation,
@@ -13,20 +15,19 @@ import {
   isWithinProximity,
 } from '../services/locationService';
 import { fetchNearbyPOIs, fetchGuideInfo, clearPOICache } from '../services/apiService';
-import { mockFetchNearbyPOIs, mockFetchGuideInfo } from '../services/mockApiService';
+import { mockFetchNearbyPOIs, mockFetchGuideInfo, clearMockPOICache } from '../services/mockApiService';
 import { Coordinates, Message, PointOfInterest } from '../types';
 
 const SERVER_URL =
   Constants.expoConfig?.extra?.serverUrl ?? 'http://localhost:8080';
 const USER_ID = Constants.expoConfig?.extra?.userId ?? '';
 
-const USE_MOCK = true;
-
-const getPOIs = USE_MOCK ? mockFetchNearbyPOIs : fetchNearbyPOIs;
-const getGuide = USE_MOCK ? mockFetchGuideInfo : fetchGuideInfo;
+const getPOIs = DEBUG_MODE ? mockFetchNearbyPOIs : fetchNearbyPOIs;
+const getGuide = DEBUG_MODE ? mockFetchGuideInfo : fetchGuideInfo;
 
 export default function HomeScreen() {
   const [tracking, setTracking] = useState(false);
+  const [startLoading, setStartLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const [pois, setPois] = useState<PointOfInterest[]>([]);
   const [messages, setMessages] = useState<Message[]>([
@@ -47,18 +48,8 @@ export default function HomeScreen() {
     ]);
   }, []);
 
-  const handleLocationUpdate = useCallback(
+  const checkProximity = useCallback(
     async (coords: Coordinates) => {
-      setUserLocation(coords);
-
-      try {
-        const nearbyPois = await getPOIs(SERVER_URL, coords, USER_ID);
-        setPois(nearbyPois);
-        poisRef.current = nearbyPois;
-      } catch {
-        // Backend not available — keep existing POIs
-      }
-
       for (const poi of poisRef.current) {
         if (visitedPoiIds.current.has(poi.id)) continue;
         if (!isWithinProximity(coords, poi.coordinates)) continue;
@@ -79,6 +70,30 @@ export default function HomeScreen() {
     [addMessage],
   );
 
+  const handleLocationUpdate = useCallback(
+    async (coords: Coordinates) => {
+      setUserLocation(coords);
+
+      try {
+        const nearbyPois = await getPOIs(SERVER_URL, coords, USER_ID);
+        setPois(nearbyPois);
+        poisRef.current = nearbyPois;
+      } catch {
+        // Backend not available — keep existing POIs
+      }
+
+      await checkProximity(coords);
+    },
+    [checkProximity],
+  );
+
+  const handleJoystickMove = useCallback(
+    (coords: Coordinates) => {
+      handleLocationUpdate(coords);
+    },
+    [handleLocationUpdate],
+  );
+
   const handleStart = useCallback(async () => {
     if (tracking) {
       locationSub.current?.remove();
@@ -88,19 +103,39 @@ export default function HomeScreen() {
       return;
     }
 
-    const granted = await requestLocationPermission();
-    if (!granted) {
-      Alert.alert(
-        'Permission Required',
-        'Location permission is needed to find nearby points of interest.',
-      );
-      return;
-    }
+    setTracking(true);
+    setStartLoading(true);
 
-    const initialLocation = await getCurrentLocation();
+    let initialLocation: Coordinates;
+    const granted = await requestLocationPermission();
+
+    if (DEBUG_MODE) {
+      if (granted) {
+        try {
+          initialLocation = await getCurrentLocation();
+        } catch {
+          initialLocation = { latitude: 40.7128, longitude: -74.006 };
+        }
+      } else {
+        initialLocation = { latitude: 40.7128, longitude: -74.006 };
+      }
+    } else {
+      if (!granted) {
+        Alert.alert(
+          'Permission Required',
+          'Location permission is needed to find nearby points of interest.',
+        );
+        setTracking(false);
+        setStartLoading(false);
+        return;
+      }
+      initialLocation = await getCurrentLocation();
+    }
     setUserLocation(initialLocation);
     visitedPoiIds.current.clear();
+    setVisitedIds(new Set());
     clearPOICache();
+    clearMockPOICache();
 
     try {
       const nearbyPois = await getPOIs(SERVER_URL, initialLocation, USER_ID);
@@ -111,9 +146,12 @@ export default function HomeScreen() {
       addMessage('Guide started! Walk around to discover points of interest.');
     }
 
-    const sub = await watchLocation(handleLocationUpdate);
-    locationSub.current = sub;
-    setTracking(true);
+    if (!DEBUG_MODE) {
+      const sub = await watchLocation(handleLocationUpdate);
+      locationSub.current = sub;
+    }
+
+    setStartLoading(false);
   }, [tracking, handleLocationUpdate, addMessage]);
 
   useEffect(() => {
@@ -129,10 +167,20 @@ export default function HomeScreen() {
       <MessagePanel messages={messages} />
 
       <View style={styles.startContainer}>
-        <StartButton active={tracking} onPress={handleStart} />
+        <StartButton active={tracking} loading={startLoading} onPress={handleStart} />
       </View>
 
       <View style={styles.notchCover} />
+
+      {DEBUG_MODE && (
+        <View style={styles.joystickLayer} pointerEvents="box-none">
+          <DebugJoystick
+            position={userLocation ?? { latitude: 37.7749, longitude: -122.4194 }}
+            onMove={handleJoystickMove}
+            disabled={!tracking}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -155,5 +203,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     zIndex: 20,
     elevation: 20,
+  },
+  joystickLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 50,
+    elevation: 50,
   },
 });

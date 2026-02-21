@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import MapView, { Callout, Marker } from 'react-native-maps';
+import MapView, { Callout, Circle, Marker } from 'react-native-maps';
+import { DEBUG_MODE } from '../config';
 import { Coordinates, PointOfInterest } from '../types';
 
 interface Props {
@@ -28,11 +29,31 @@ export default function MapViewComponent({ userLocation, pois, visitedIds }: Pro
     <MapView
       style={styles.map}
       initialRegion={initialRegion}
-      showsUserLocation
-      showsMyLocationButton
+      showsUserLocation={!DEBUG_MODE}
+      showsMyLocationButton={!DEBUG_MODE}
       showsCompass
       showsPointsOfInterest={false}
     >
+      {DEBUG_MODE && userLocation && (
+        <>
+          <Marker
+            coordinate={userLocation}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat
+          >
+            <View style={styles.userDotOuter}>
+              <View style={styles.userDotInner} />
+            </View>
+          </Marker>
+          <Circle
+            center={userLocation}
+            radius={30}
+            fillColor="rgba(0, 122, 255, 0.1)"
+            strokeColor="rgba(0, 122, 255, 0.3)"
+            strokeWidth={1}
+          />
+        </>
+      )}
       {pois.map((poi) => (
         <Marker
           key={poi.id}
@@ -63,6 +84,22 @@ export default function MapViewComponent({ userLocation, pois, visitedIds }: Pro
 const styles = StyleSheet.create({
   map: {
     flex: 1,
+  },
+  userDotOuter: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0, 122, 255, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userDotInner: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#ffffff',
   },
   callout: {
     width: 200,

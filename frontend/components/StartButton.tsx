@@ -3,19 +3,29 @@ import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 
 interface Props {
   active: boolean;
+  loading: boolean;
   onPress: () => void;
 }
 
 const BAR_COUNT = 12;
 
-function VoiceBars() {
+function VoiceBars({ animate }: { animate: boolean }) {
   const animations = useRef(
-    Array.from({ length: BAR_COUNT }, () => new Animated.Value(0.3)),
+    Array.from({ length: BAR_COUNT }, () => new Animated.Value(0)),
   ).current;
+  const loopsRef = useRef<Animated.CompositeAnimation[]>([]);
 
   useEffect(() => {
-    const loops = animations.map((anim, i) =>
-      Animated.loop(
+    loopsRef.current.forEach((l) => l.stop());
+
+    if (!animate) {
+      animations.forEach((anim) => anim.setValue(0));
+      return;
+    }
+
+    const loops = animations.map((anim) => {
+      anim.setValue(0.15 + Math.random() * 0.2);
+      return Animated.loop(
         Animated.sequence([
           Animated.timing(anim, {
             toValue: 0.3 + Math.random() * 0.7,
@@ -30,11 +40,13 @@ function VoiceBars() {
             useNativeDriver: false,
           }),
         ]),
-      ),
-    );
+      );
+    });
+
+    loopsRef.current = loops;
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());
-  }, [animations]);
+  }, [animate, animations]);
 
   return (
     <View style={barStyles.container}>
@@ -56,14 +68,14 @@ function VoiceBars() {
   );
 }
 
-export default function StartButton({ active, onPress }: Props) {
+export default function StartButton({ active, loading, onPress }: Props) {
   return (
     <Pressable
       style={[styles.button, active && styles.buttonActive]}
       onPress={onPress}
     >
       {active ? (
-        <VoiceBars />
+        <VoiceBars animate={!loading} />
       ) : (
         <Animated.Text style={styles.label}>START</Animated.Text>
       )}

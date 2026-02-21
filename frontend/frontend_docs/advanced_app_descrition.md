@@ -13,7 +13,5 @@ Use REST calls for interfacing with the backend.
 
 The user flow is: Open app --> Display map --> Press "Start guide" button --> Show AI guide respone (just as text for now)
 
-Mark visited suggestions as "visited" (not visually, just in persistent phone memory) so that we don't request info on it many times.
-
-
+Mark visited suggestions as "visited" so that we don't request info on it many times.
 

@@ -10,3 +10,5 @@ Send off GPS position to the backend (make this work for both IOS and Andriod).
 Get interesting locations in return.
 When we are close to the interesting locations, we ask an LLM for guide info (make it LLM agnostic, i.e. that we can easily switch out the LLM / polymorphism).
 When the LLM is finished, it returns with text.
+
+Have different admissable distances based on category.

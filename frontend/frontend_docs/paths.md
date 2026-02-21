@@ -1,0 +1,1 @@
+When the user selects an end destination, plan the route to this destination using some default api connected to the maps.
