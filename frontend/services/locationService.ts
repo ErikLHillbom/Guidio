@@ -2,7 +2,7 @@ import * as Location from 'expo-location';
 import { Coordinates } from '../types';
 import { geodesicDistanceMeters } from '../utils/geo';
 
-const PROXIMITY_THRESHOLD_METERS = 20;
+const PROXIMITY_THRESHOLD_METERS = 10;
 
 export async function requestLocationPermission(): Promise<boolean> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -25,8 +25,8 @@ export function watchLocation(
   return Location.watchPositionAsync(
     {
       accuracy: Location.Accuracy.High,
-      distanceInterval: 10,
-      timeInterval: 5000,
+      distanceInterval: 5,
+      timeInterval: 2000,
     },
     (location) => {
       onUpdate({
