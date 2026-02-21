@@ -41,6 +41,7 @@ export default function HomeScreen() {
     rebuildIndex,
     startInterval,
     stopInterval,
+    skipCurrent,
   } = useProximity({
     service: dataService,
     userLocationRef,
@@ -51,6 +52,11 @@ export default function HomeScreen() {
 
   const handleStart = useCallback(async () => {
     if (tracking) {
+      if (audioProgress > 0) {
+        skipCurrent();
+        addMessage('Skipped.');
+        return;
+      }
       stopInterval();
       stop();
       addMessage('Guide stopped.');
@@ -75,7 +81,7 @@ export default function HomeScreen() {
 
     startInterval();
     finishLoading();
-  }, [tracking, stop, stopInterval, start, loadPOIs, startInterval, finishLoading, addMessage, rebuildIndex]);
+  }, [tracking, audioProgress, skipCurrent, stop, stopInterval, start, loadPOIs, startInterval, finishLoading, addMessage, rebuildIndex]);
 
   const handleJoystickMove = useCallback(
     (coords: Coordinates) => {

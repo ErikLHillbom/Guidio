@@ -220,6 +220,12 @@ export function useProximity({
     }, 300);
   }, [userLocationRef, updateBucket, checkProximity, maybeRefetch]);
 
+  const skipCurrent = useCallback(() => {
+    if (currentPlayer.current) {
+      currentPlayer.current.pause();
+    }
+  }, []);
+
   const stopInterval = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -294,5 +300,6 @@ export function useProximity({
     rebuildIndex,
     startInterval,
     stopInterval,
+    skipCurrent,
   } as const;
 }
