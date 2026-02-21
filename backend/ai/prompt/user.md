@@ -1,4 +1,4 @@
-Describe this to your client: <|TITLE|>
+Describe this to your client Jon concisely: <|TITLE|>
 
 Summary: <|SUMMARY|>
 
@@ -8,6 +8,5 @@ Reference material:
 Context
 - direction from client: <|DIRECTION|>
 - location: <|LOCATION|>
-- coordinates: <|LATITUDE|>
-- time: <|TIME|>
+- coordinates: <|LATITUDE|>, <|LONGITUDE|>
 - client interest: <|INTEREST|>
