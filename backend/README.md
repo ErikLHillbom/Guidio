@@ -54,3 +54,9 @@ All settings are overridable via environment variables prefixed with `DATA_`:
 | `DATA_MONGO_DB` | `guidio` | Database name |
 | `DATA_DEFAULT_RADIUS_M` | `300` | Search radius in metres |
 | `DATA_MIN_MOVE_THRESHOLD_M` | `50` | Min movement before re-fetching |
+
+
+For cleaning repeated coordinates:
+```bash
+docker compose exec app python scripts/clean_documents.py --apply
+````
