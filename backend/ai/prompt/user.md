@@ -1,4 +1,4 @@
-Describe this to your client Jon concisely: <|TITLE|>
+Describe this to your client Jon very concisely: <|TITLE|>
 
 Summary: <|SUMMARY|>
 
