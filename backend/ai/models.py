@@ -3,7 +3,10 @@ from dataclasses import dataclass
 
 @dataclass
 class Information:
-    object_name: str
+    title: str
+    latitude: float
+    summary: str
+    text: str
     location: str
     time: str
     interest: str

@@ -1,6 +1,12 @@
-Describe the given object to your client: <|OBJECT|>
+Describe this to your client: <|TITLE|>
 
-Information
+Summary: <|SUMMARY|>
+
+Reference material:
+<|TEXT|>
+
+Context
 - location: <|LOCATION|>
+- Latitude: <|LATITUDE|>
 - time: <|TIME|>
 - client interest: <|INTEREST|>
