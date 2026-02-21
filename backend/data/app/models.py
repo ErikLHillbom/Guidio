@@ -25,3 +25,13 @@ class LocationResponse(BaseModel):
     latitude: float
     longitude: float
     points_of_interest: list[PointOfInterest]
+
+
+class PoiDetail(BaseModel):
+    """Detailed content for a single POI (text + audio)."""
+
+    entity_id: str
+    title: str
+    text: str | None = None
+    text_audio: str | None = None
+    audio_file: str | None = None

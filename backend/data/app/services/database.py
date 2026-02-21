@@ -2,7 +2,7 @@
 
 from app.config import settings
 from app.db import get_db
-from app.models import PointOfInterest
+from app.models import PoiDetail, PointOfInterest
 
 
 async def fetch_pois_from_db(
@@ -43,3 +43,21 @@ async def fetch_pois_from_db(
             )
         )
     return pois
+
+
+async def fetch_poi_detail(entity_id: str) -> PoiDetail | None:
+    """Fetch the text and audio fields for a single POI by entity_id."""
+    db = get_db()
+    doc = await db.pois.find_one(
+        {"entity_id": entity_id},
+        {"entity_id": 1, "title": 1, "text": 1, "text_audio": 1, "audio_file": 1},
+    )
+    if doc is None:
+        return None
+    return PoiDetail(
+        entity_id=doc["entity_id"],
+        title=doc.get("title", ""),
+        text=doc.get("text"),
+        text_audio=doc.get("text_audio"),
+        audio_file=doc.get("audio_file"),
+    )

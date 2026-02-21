@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Response
 
 from app.config import settings
-from app.models import LocationRequest, LocationResponse
-from app.services.database import fetch_pois_from_db
+from app.models import LocationRequest, LocationResponse, PoiDetail
+from app.services.database import fetch_poi_detail, fetch_pois_from_db
 from app.utils import haversine_m
 
 router = APIRouter(prefix="/locations", tags=["locations"])
@@ -51,3 +51,12 @@ async def update_location(req: LocationRequest) -> LocationResponse | Response:
         longitude=req.longitude,
         points_of_interest=pois,
     )
+
+
+@router.get("/detail/{entity_id}", response_model=PoiDetail)
+async def get_poi_detail(entity_id: str) -> PoiDetail:
+    """Return the text and audio content for a single POI."""
+    detail = await fetch_poi_detail(entity_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="POI not found")
+    return detail
