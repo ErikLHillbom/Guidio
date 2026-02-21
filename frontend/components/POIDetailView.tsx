@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '85%',
-    minHeight: '40%',
+    maxHeight: '90%',
+    minHeight: '75%',
     overflow: 'hidden',
   },
   header: {
