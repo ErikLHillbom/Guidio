@@ -1,6 +1,6 @@
 A travel guide app that gives the user information about nearby points of interest as they walk through a city.
 
-It should have a map (use react-native-maps, for both IOS and Android, https://www.npmjs.com/package/react-native-maps), a start button, and a toggle in the top right to switch between map view and AI response view.
+It should have a map (use react-native-maps, for both IOS and Android, https://www.npmjs.com/package/react-native-maps).
 
 Importantly, the user doesn't type any text to prompt the AI, only the geographic data is sent to the backend.
 
@@ -14,3 +14,4 @@ Use REST calls for interfacing with the backend.
 The user flow is: Open app --> Display map --> Press "Start guide" button --> Show AI guide respone (just as text for now)
 
 Mark visited suggestions as "visited" (not visually, just in persistent phone memory) so that we don't request info on it many times.
+

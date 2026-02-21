@@ -15,3 +15,9 @@ export interface GuideResponse {
   poiName: string;
   text: string;
 }
+
+export interface Message {
+  id: string;
+  text: string;
+  timestamp: Date;
+}

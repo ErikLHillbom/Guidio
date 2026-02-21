@@ -21,7 +21,7 @@ export default function StartButton({ active, onPress }: Props) {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#4fc3f7',
+    backgroundColor: '#1b24d3',
     paddingHorizontal: 40,
     paddingVertical: 14,
     borderRadius: 32,
@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: 'Silkscreen_400Regular',
     fontSize: 18,
-    color: '#1a1a2e',
+    color: '#ffffff',
     letterSpacing: 2,
   },
   labelActive: {
