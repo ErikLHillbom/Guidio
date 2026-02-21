@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import json
+import re
 import datetime as dt
 from typing import Optional, Tuple, Any, Dict, List
 
@@ -149,104 +150,133 @@ def wikipedia_rest_summary(title: str, user_agent: str) -> dict:
     return http_get_json(url, headers={"User-Agent": user_agent, "Accept": "application/json"})
 
 
-def strip_links_and_simplify_html(full_html: str) -> str:
+def strip_links_and_simplify_html(full_html: str, page_title: Optional[str] = None) -> str:
     """
-    Turn Wikipedia parse HTML into "basic" HTML (markdown-ish):
-    - keeps: h2,h3,h4,p,ul,ol,li,blockquote,pre,code,br,strong,b,em,i
-    - removes: tables, infoboxes, navboxes, references, sup/cite, styles/scripts, figures, etc.
-    - removes all links (<a> unwrapped)
-    - removes most attributes
-    - extracts main content under .mw-parser-output
+    Turn Wikipedia parse HTML into custom basic HTML:
+    - keeps: title + sections/subsections + paragraphs/lists
+    - keeps basic inline formatting: bold/italics/code/br
+    - removes links, references, infobox/nav templates, styles/scripts/media
+    - drops noisy tail sections (references/external links/etc.)
     """
     soup = BeautifulSoup(full_html, "html.parser")
 
-    # Get main content container
     container = soup.select_one(".mw-parser-output") or soup
 
-    # Remove unwanted blocks early
+    # Remove noisy blocks/templates/media before extracting text.
     for sel in [
         "table", "style", "script", "noscript",
         ".infobox", ".navbox", ".vertical-navbox", ".metadata",
-        ".reflist", ".reference", "sup.reference", "ol.references",
-        ".mw-editsection", ".toc", ".hatnote", ".shortdescription",
-        "figure", "img",  # images handled separately via image_url
+        ".reflist", ".reference", "sup.reference", "ol.references", ".mw-references-wrap",
+        ".mw-editsection", ".toc", ".hatnote", ".shortdescription", ".noprint",
+        ".portalbox", ".sistersitebox", ".navbox-styles", ".authority-control",
+        "figure", "img", "audio", "video", "math", "sup",
     ]:
         for node in container.select(sel):
             node.decompose()
 
-    # Unwrap all links but keep their text
+    # Modern parse output wraps headings in div.mw-heading; normalize to plain h2/h3/h4.
+    for wrapper in list(container.select("div.mw-heading")):
+        heading = wrapper.find(["h2", "h3", "h4"])
+        if heading is None:
+            wrapper.decompose()
+            continue
+        clean_heading = soup.new_tag(heading.name)
+        clean_heading.string = heading.get_text(" ", strip=True)
+        wrapper.replace_with(clean_heading)
+
+    # Unwrap links while keeping anchor text.
     for a in container.find_all("a"):
         a.unwrap()
 
-    # Remove citation-like brackets leftover sometimes
-    # (Often they are in <sup> which we removed, but keep this as backup)
-    for sup in container.find_all("sup"):
-        sup.decompose()
+    block_tags = {"h2", "h3", "h4", "p", "ul", "ol", "blockquote", "pre", "li"}
+    inline_tags = {"strong", "b", "em", "i", "code", "br"}
+    tag_alias = {"b": "strong", "i": "em"}
+    stop_sections = {
+        "references", "external links", "see also", "further reading", "notes",
+        "bibliography", "sources", "works cited",
+    }
 
-    allowed = {"h2", "h3", "h4", "p", "ul", "ol", "li", "blockquote", "pre", "code", "br",
-               "strong", "b", "em", "i"}
-
-    # Convert to a clean soup we build ourselves
     clean_root = BeautifulSoup("", "html.parser")
     out_fragments: List[Tag] = []
 
-    def clone_allowed(node) -> Optional[Tag | NavigableString]:
+    def normalize_text_node(text: str) -> str:
+        if not text:
+            return ""
+        if text.isspace():
+            return " "
+        return re.sub(r"\s+", " ", text)
+
+    def sanitize_node(node) -> List[Tag | NavigableString]:
         if isinstance(node, NavigableString):
-            text = str(node)
-            # collapse crazy whitespace but keep meaningful spaces/newlines
-            text = " ".join(text.split())
-            return NavigableString(text) if text else None
+            text = normalize_text_node(str(node))
+            return [NavigableString(text)] if text else []
 
         if not isinstance(node, Tag):
-            return None
+            return []
 
         name = node.name.lower()
+        if name in {"sup"}:
+            return []
 
-        # Drop headings that are just edit remnants, empty, etc.
-        if name in {"h2", "h3", "h4"}:
-            # Wikipedia headings often contain span.mw-headline
-            headline = node.get_text(" ", strip=True)
-            if not headline:
-                return None
-            new_tag = clean_root.new_tag(name)
-            new_tag.string = headline
-            return new_tag
+        if name not in block_tags and name not in inline_tags:
+            out: List[Tag | NavigableString] = []
+            for child in node.children:
+                out.extend(sanitize_node(child))
+            return out
 
-        if name not in allowed:
-            # For non-allowed tags, recurse into children and return a wrapper-less list via special handling
-            # We'll handle by returning None here and letting caller pull children in.
-            return None
+        out_name = tag_alias.get(name, name)
+        new_tag = clean_root.new_tag(out_name)
 
-        new_tag = clean_root.new_tag(name)
-        # no attributes (markdown-ish)
         for child in node.children:
-            cloned = clone_allowed(child)
-            if cloned is None:
-                # if child is a Tag not allowed, inline its text content by recursing
-                if isinstance(child, Tag):
-                    for gc in child.children:
-                        cc = clone_allowed(gc)
-                        if cc is not None:
-                            new_tag.append(cc)
-                continue
-            new_tag.append(cloned)
+            for clean_child in sanitize_node(child):
+                new_tag.append(clean_child)
 
-        # Clean empty tags
-        if new_tag.get_text(strip=True) == "" and name not in {"br"}:
-            return None
-        return new_tag
+        if out_name != "br" and not new_tag.get_text(strip=True):
+            return []
 
-    # Keep only top-level “block” elements in order
+        # Remove leading/trailing spacing noise from container tags.
+        if new_tag.contents and isinstance(new_tag.contents[0], NavigableString):
+            new_tag.contents[0].replace_with(str(new_tag.contents[0]).lstrip())
+        if new_tag.contents and isinstance(new_tag.contents[-1], NavigableString):
+            new_tag.contents[-1].replace_with(str(new_tag.contents[-1]).rstrip())
+
+        return [new_tag]
+
+    def iter_blocks(node: Tag):
+        name = node.name.lower()
+        if name in {"h2", "h3", "h4", "p", "ul", "ol", "blockquote", "pre"}:
+            yield node
+            return
+        for child in node.children:
+            if isinstance(child, Tag):
+                yield from iter_blocks(child)
+
+    if page_title:
+        title_tag = clean_root.new_tag("h1")
+        title_tag.string = page_title
+        out_fragments.append(title_tag)
+
     for child in list(container.children):
-        if isinstance(child, Tag):
-            tagname = child.name.lower()
-            if tagname in {"p", "h2", "h3", "h4", "ul", "ol", "blockquote", "pre"}:
-                cloned = clone_allowed(child)
-                if isinstance(cloned, Tag):
-                    out_fragments.append(cloned)
+        if not isinstance(child, Tag):
+            continue
+        for block in iter_blocks(child):
+            cleaned_nodes = sanitize_node(block)
+            cleaned_tag = next((n for n in cleaned_nodes if isinstance(n, Tag)), None)
+            if cleaned_tag is None:
+                continue
 
-    # Join with newlines for readability
+            if cleaned_tag.name in {"h2", "h3", "h4"}:
+                heading = cleaned_tag.get_text(" ", strip=True).lower()
+                if heading in stop_sections:
+                    return "\n".join(str(t) for t in out_fragments)
+
+            out_fragments.append(cleaned_tag)
+
+    # Final light whitespace cleanup around punctuation.
     final = "\n".join(str(t) for t in out_fragments)
+    final = re.sub(r"\s+([,.;:!?])", r"\1", final)
+    final = re.sub(r"\(\s+", "(", final)
+    final = re.sub(r"\s+\)", ")", final)
     return final
 
 
@@ -288,7 +318,7 @@ def build_json(entity_id: str) -> Dict[str, Any]:
 
         # full page html -> simplified html without links
         full_html = wikipedia_parse_full_html(en_title, user_agent)
-        text_basic_html = strip_links_and_simplify_html(full_html)
+        text_basic_html = strip_links_and_simplify_html(full_html, page_title=en_title)
 
     out = {
         "entity_id": entity_id,
