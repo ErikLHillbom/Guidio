@@ -13,7 +13,9 @@ export interface PointOfInterest {
 export interface GuideResponse {
   poiId: string;
   poiName: string;
-  text: string;
+  transcription: string;
+  audioUrl: string;
+  imageUrl: string;
 }
 
 export interface Message {
