@@ -1,16 +1,46 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import MapView, { Callout, Circle, Marker } from 'react-native-maps';
-import { DEBUG_MODE } from '../config';
+import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
+import { BucketGridLines } from '../services/bucketService';
+
+function CalloutImage({ uri }: { uri: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <Image
+      source={{ uri }}
+      style={styles.calloutImage}
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 interface Props {
   userLocation: Coordinates | null;
   pois: PointOfInterest[];
   visitedIds: Set<string>;
+  queuedIds: Set<string>;
+  gridLines: BucketGridLines | null;
+  showCustomUserMarker: boolean;
+  onPOIPress?: (poi: PointOfInterest) => void;
 }
 
-export default function MapViewComponent({ userLocation, pois, visitedIds }: Props) {
+function getPinColor(id: string, visitedIds: Set<string>, queuedIds: Set<string>): string {
+  if (visitedIds.has(id)) return '#4CAF50';
+  if (queuedIds.has(id)) return '#FFC107';
+  return '#1b24d3';
+}
+
+export default function MapViewComponent({
+  userLocation,
+  pois,
+  visitedIds,
+  queuedIds,
+  gridLines,
+  showCustomUserMarker,
+  onPOIPress,
+}: Props) {
   const initialRegion = userLocation
     ? {
         latitude: userLocation.latitude,
@@ -29,12 +59,12 @@ export default function MapViewComponent({ userLocation, pois, visitedIds }: Pro
     <MapView
       style={styles.map}
       initialRegion={initialRegion}
-      showsUserLocation={!DEBUG_MODE}
-      showsMyLocationButton={!DEBUG_MODE}
+      showsUserLocation={!showCustomUserMarker}
+      showsMyLocationButton={!showCustomUserMarker}
       showsCompass
       showsPointsOfInterest={false}
     >
-      {DEBUG_MODE && userLocation && (
+      {showCustomUserMarker && userLocation && (
         <>
           <Marker
             coordinate={userLocation}
@@ -58,26 +88,47 @@ export default function MapViewComponent({ userLocation, pois, visitedIds }: Pro
         <Marker
           key={poi.id}
           coordinate={poi.coordinates}
-          pinColor={visitedIds.has(poi.id) ? '#4CAF50' : '#1b24d3'}
+          pinColor={getPinColor(poi.id, visitedIds, queuedIds)}
         >
-          <Callout tooltip={false}>
+          <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
             <View style={styles.callout}>
               <Text style={styles.calloutTitle}>{poi.name}</Text>
-              {poi.imageUrl ? (
-                <Image
-                  source={{ uri: poi.imageUrl }}
-                  style={styles.calloutImage}
-                />
-              ) : null}
+              {poi.imageUrl ? <CalloutImage uri={poi.imageUrl} /> : null}
               {poi.description && (
                 <Text style={styles.calloutDescription}>{poi.description}</Text>
               )}
               {visitedIds.has(poi.id) && (
                 <Text style={styles.calloutVisited}>Visited</Text>
               )}
+              {!visitedIds.has(poi.id) && queuedIds.has(poi.id) && (
+                <Text style={styles.calloutQueued}>In queue...</Text>
+              )}
+              <Text style={styles.calloutTapHint}>Tap for details</Text>
             </View>
           </Callout>
         </Marker>
+      ))}
+      {gridLines?.horizontalLines.map((line, i) => (
+        <Polyline
+          key={`grid-h-${i}`}
+          coordinates={[
+            { latitude: line.latitude, longitude: line.lngMin },
+            { latitude: line.latitude, longitude: line.lngMax },
+          ]}
+          strokeColor="rgba(255, 0, 0, 0.4)"
+          strokeWidth={1}
+        />
+      ))}
+      {gridLines?.verticalLines.map((line, i) => (
+        <Polyline
+          key={`grid-v-${i}`}
+          coordinates={[
+            { latitude: line.latMin, longitude: line.longitude },
+            { latitude: line.latMax, longitude: line.longitude },
+          ]}
+          strokeColor="rgba(255, 0, 0, 0.4)"
+          strokeWidth={1}
+        />
       ))}
     </MapView>
   );
@@ -130,5 +181,17 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     fontWeight: 'bold',
     marginTop: 4,
+  },
+  calloutQueued: {
+    fontSize: 11,
+    color: '#FFC107',
+    fontWeight: 'bold',
+    marginTop: 4,
+  },
+  calloutTapHint: {
+    fontSize: 11,
+    color: '#040ece',
+    marginTop: 6,
+    textAlign: 'center',
   },
 });

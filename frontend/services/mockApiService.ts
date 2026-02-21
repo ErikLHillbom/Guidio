@@ -1,5 +1,25 @@
+import { Asset } from 'expo-asset';
 import mockData from '../mock_data/mock_backend_response.json';
-import { Coordinates, GuideResponse, PointOfInterest } from '../types';
+import mockDetailData from '../mock_data/mock_backend_response_detailed.json';
+import { Coordinates, GuideResponse, POIDetail, PointOfInterest } from '../types';
+import { DataService } from './DataService';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const MOCK_AUDIO_MODULE = require('../mock_data/Q1754.mp3');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const MOCK_TRANSCRIPTION_MODULE = require('../mock_data/Q1754.txt');
+
+let cachedTranscription: string | null = null;
+
+async function loadMockTranscription(): Promise<string> {
+  if (cachedTranscription) return cachedTranscription;
+  const asset = Asset.fromModule(MOCK_TRANSCRIPTION_MODULE);
+  await asset.downloadAsync();
+  const uri = asset.localUri ?? asset.uri;
+  const response = await fetch(uri);
+  cachedTranscription = await response.text();
+  return cachedTranscription;
+}
 
 interface MockPOIEntry {
   entity_id: string;
@@ -20,12 +40,10 @@ const ALL_MOCK_POIS: PointOfInterest[] = (
   categories: p.categories,
 }));
 
-const MOCK_START_LOCATION: Coordinates = {
+export const MOCK_START_LOCATION: Coordinates = {
   latitude: mockData.latitude,
   longitude: mockData.longitude,
 };
-
-let cachedMockPOIs: PointOfInterest[] | null = null;
 
 const SIMULATED_DELAY_MS = 1500;
 
@@ -33,39 +51,67 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export { MOCK_START_LOCATION };
+export class MockDataService implements DataService {
+  private cachedPOIs: PointOfInterest[] | null = null;
 
-export function clearMockPOICache(): void {
-  cachedMockPOIs = null;
-}
-
-export async function mockFetchNearbyPOIs(
-  _serverUrl: string,
-  _coordinates: Coordinates,
-  _userId: string,
-): Promise<PointOfInterest[]> {
-  await delay(300);
-  if (!cachedMockPOIs) {
-    cachedMockPOIs = ALL_MOCK_POIS;
+  async fetchNearbyPOIs(_coordinates: Coordinates, _userId: string): Promise<PointOfInterest[]> {
+    await delay(300);
+    if (!this.cachedPOIs) {
+      this.cachedPOIs = ALL_MOCK_POIS;
+    }
+    return this.cachedPOIs;
   }
-  return cachedMockPOIs;
-}
 
-export async function mockFetchGuideInfo(
-  _serverUrl: string,
-  poiId: string,
-  poiName: string,
-  _userCoordinates: Coordinates,
-): Promise<GuideResponse> {
-  await delay(SIMULATED_DELAY_MS);
+  async fetchGuideInfo(
+    poiId: string,
+    poiName: string,
+    _userCoordinates: Coordinates,
+  ): Promise<GuideResponse> {
+    await delay(SIMULATED_DELAY_MS);
 
-  const poi = ALL_MOCK_POIS.find((p) => p.id === poiId);
+    const poi = ALL_MOCK_POIS.find((p) => p.id === poiId);
 
-  return {
-    poiId,
-    poiName,
-    transcription: `You are now near ${poiName}. This is a notable location in Stockholm's Gamla Stan district, rich with history and cultural significance.`,
-    audioUrl: 'https://example.com/audio/placeholder.mp3',
-    imageUrl: poi?.imageUrl ?? 'https://example.com/images/placeholder.jpg',
-  };
+    const asset = Asset.fromModule(MOCK_AUDIO_MODULE);
+    await asset.downloadAsync();
+
+    const transcription = await loadMockTranscription();
+
+    return {
+      poiId,
+      poiName,
+      transcription,
+      audioUrl: asset.localUri ?? asset.uri,
+      imageUrl: poi?.imageUrl ?? '',
+    };
+  }
+
+  async fetchPOIDetail(poiId: string): Promise<POIDetail> {
+    await delay(300);
+
+    const poi = ALL_MOCK_POIS.find((p) => p.id === poiId);
+    const title = poi?.name ?? poiId;
+
+    // Use real detailed data if it matches, otherwise generate a placeholder
+    if (mockDetailData.entity_id === poiId) {
+      return {
+        entityId: mockDetailData.entity_id,
+        title: mockDetailData.title,
+        text: mockDetailData.text,
+        textAudio: mockDetailData.text_audio,
+        audioFile: mockDetailData.audio_file,
+      };
+    }
+
+    return {
+      entityId: poiId,
+      title,
+      text: `<h1>${title}</h1>\n<p>${title} is a notable landmark located in Stockholm. It has a rich history and cultural significance that makes it a must-visit destination.</p>`,
+      textAudio: '',
+      audioFile: '',
+    };
+  }
+
+  clearCache(): void {
+    this.cachedPOIs = null;
+  }
 }

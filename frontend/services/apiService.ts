@@ -1,70 +1,84 @@
-import { Coordinates, GuideResponse, PointOfInterest } from '../types';
+import { Coordinates, GuideResponse, POIDetail, PointOfInterest } from '../types';
+import { geodesicDistanceMeters } from '../utils/geo';
+import { DataService } from './DataService';
 
-let cachedPois: PointOfInterest[] = [];
-let cacheOrigin: Coordinates | null = null;
 const CACHE_RADIUS_METERS = 200;
 
-function distanceMeters(a: Coordinates, b: Coordinates): number {
-  const R = 6371000;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const dLat = toRad(b.latitude - a.latitude);
-  const dLon = toRad(b.longitude - a.longitude);
-  const sinLat = Math.sin(dLat / 2);
-  const sinLon = Math.sin(dLon / 2);
-  const h = sinLat * sinLat + Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * sinLon * sinLon;
-  return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-}
+export class RealDataService implements DataService {
+  private serverUrl: string;
+  private cachedPois: PointOfInterest[] = [];
+  private cacheOrigin: Coordinates | null = null;
 
-function isCacheValid(coords: Coordinates): boolean {
-  if (!cacheOrigin || cachedPois.length === 0) return false;
-  return distanceMeters(cacheOrigin, coords) < CACHE_RADIUS_METERS;
-}
-
-export async function fetchNearbyPOIs(
-  serverUrl: string,
-  coordinates: Coordinates,
-  userId: string,
-): Promise<PointOfInterest[]> {
-  if (isCacheValid(coordinates)) {
-    return cachedPois;
+  constructor(serverUrl: string) {
+    this.serverUrl = serverUrl;
   }
 
-  const response = await fetch(`${serverUrl}/location`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ coordinates, userId }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Location request failed: ${response.status}`);
+  private isCacheValid(coords: Coordinates): boolean {
+    if (!this.cacheOrigin || this.cachedPois.length === 0) return false;
+    return geodesicDistanceMeters(this.cacheOrigin, coords) < CACHE_RADIUS_METERS;
   }
 
-  const data = await response.json();
-  cachedPois = data.pois;
-  cacheOrigin = coordinates;
-  return cachedPois;
-}
+  async fetchNearbyPOIs(coordinates: Coordinates, userId: string): Promise<PointOfInterest[]> {
+    if (this.isCacheValid(coordinates)) {
+      return this.cachedPois;
+    }
 
-export async function fetchGuideInfo(
-  serverUrl: string,
-  poiId: string,
-  poiName: string,
-  userCoordinates: Coordinates,
-): Promise<GuideResponse> {
-  const response = await fetch(`${serverUrl}/guide`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ poiId, poiName, userCoordinates }),
-  });
+    const response = await fetch(`${this.serverUrl}/location`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ coordinates, userId }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Guide request failed: ${response.status}`);
+    if (!response.ok) {
+      throw new Error(`Location request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    this.cachedPois = data.pois;
+    this.cacheOrigin = coordinates;
+    return this.cachedPois;
   }
 
-  return await response.json();
-}
+  async fetchGuideInfo(
+    poiId: string,
+    poiName: string,
+    userCoordinates: Coordinates,
+  ): Promise<GuideResponse> {
+    const response = await fetch(`${this.serverUrl}/guide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ poiId, poiName, userCoordinates }),
+    });
 
-export function clearPOICache(): void {
-  cachedPois = [];
-  cacheOrigin = null;
+    if (!response.ok) {
+      throw new Error(`Guide request failed: ${response.status}`);
+    }
+
+    return await response.json();
+  }
+
+  async fetchPOIDetail(poiId: string): Promise<POIDetail> {
+    const response = await fetch(`${this.serverUrl}/poi/${poiId}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error(`POI detail request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return {
+      entityId: data.entity_id,
+      title: data.title,
+      text: data.text,
+      textAudio: data.text_audio ?? '',
+      audioFile: data.audio_file ?? '',
+    };
+  }
+
+  clearCache(): void {
+    this.cachedPois = [];
+    this.cacheOrigin = null;
+  }
 }

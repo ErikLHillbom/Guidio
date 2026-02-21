@@ -71,7 +71,6 @@ export default function MessagePanel({ messages }: Props) {
             ref={scrollRef}
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
-            scrollEnabled={expanded}
             onContentSizeChange={scrollToEnd}
             onLayout={scrollToEnd}
           >
@@ -135,7 +134,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingBottom: 8,
+    paddingBottom: 16,
   },
   messageBubble: {
     backgroundColor: '#ffffff',

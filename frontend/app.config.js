@@ -17,6 +17,8 @@ export default {
             'Allow Guidio to use your location to find nearby points of interest',
         },
       ],
+      'expo-asset',
+      'expo-audio',
     ],
     ios: {
       supportsTablet: true,

@@ -20,6 +20,14 @@ export interface GuideResponse {
   imageUrl: string;
 }
 
+export interface POIDetail {
+  entityId: string;
+  title: string;
+  text: string;
+  textAudio: string;
+  audioFile: string;
+}
+
 export interface Message {
   id: string;
   text: string;

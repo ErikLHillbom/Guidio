@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { Coordinates } from '../types';
+import { offsetCoordinates } from '../utils/geo';
 
 const BASE_SIZE = 120;
 const KNOB_SIZE = 44;
@@ -12,19 +13,6 @@ interface Props {
   position: Coordinates;
   onMove: (coords: Coordinates) => void;
   disabled?: boolean;
-}
-
-function offsetPosition(
-  base: Coordinates,
-  dxMeters: number,
-  dyMeters: number,
-): Coordinates {
-  const latDeg = dyMeters / 111320;
-  const lonDeg = dxMeters / (111320 * Math.cos((base.latitude * Math.PI) / 180));
-  return {
-    latitude: base.latitude + latDeg,
-    longitude: base.longitude + lonDeg,
-  };
 }
 
 export default function DebugJoystick({ position, onMove, disabled }: Props) {
@@ -55,7 +43,7 @@ export default function DebugJoystick({ position, onMove, disabled }: Props) {
       const dx = normalizedX * METERS_PER_TICK;
       const dy = normalizedY * METERS_PER_TICK;
 
-      const newPos = offsetPosition(positionRef.current, dx, dy);
+      const newPos = offsetCoordinates(positionRef.current, dx, dy);
       onMove(newPos);
     }, TICK_INTERVAL_MS);
   }, [onMove]);

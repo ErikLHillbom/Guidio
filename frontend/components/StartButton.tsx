@@ -4,10 +4,13 @@ import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
 interface Props {
   active: boolean;
   loading: boolean;
+  audioProgress: number;
   onPress: () => void;
 }
 
 const BAR_COUNT = 12;
+const DARK_BLUE = '#1b24d3';
+const LIGHT_BLUE = '#5b6aff';
 
 function VoiceBars({ animate }: { animate: boolean }) {
   const animations = useRef(
@@ -68,14 +71,26 @@ function VoiceBars({ animate }: { animate: boolean }) {
   );
 }
 
-export default function StartButton({ active, loading, onPress }: Props) {
+export default function StartButton({ active, loading, audioProgress, onPress }: Props) {
+  const isPlaying = active && audioProgress > 0;
+
   return (
     <Pressable
       style={[styles.button, active && styles.buttonActive]}
       onPress={onPress}
     >
+      {isPlaying && (
+        <View style={StyleSheet.absoluteFill}>
+          <View
+            style={[
+              styles.progressFill,
+              { width: `${Math.min(audioProgress * 100, 100)}%` },
+            ]}
+          />
+        </View>
+      )}
       {active ? (
-        <VoiceBars animate={!loading} />
+        <VoiceBars animate={audioProgress > 0} />
       ) : (
         <Animated.Text style={styles.label}>START</Animated.Text>
       )}
@@ -85,7 +100,7 @@ export default function StartButton({ active, loading, onPress }: Props) {
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: '#1b24d3',
+    backgroundColor: DARK_BLUE,
     paddingHorizontal: 40,
     paddingVertical: 14,
     borderRadius: 32,
@@ -97,9 +112,17 @@ const styles = StyleSheet.create({
     minWidth: 150,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   buttonActive: {
-    backgroundColor: '#5b6aff',
+    backgroundColor: LIGHT_BLUE,
+  },
+  progressFill: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: DARK_BLUE,
   },
   label: {
     fontFamily: 'Silkscreen_400Regular',
