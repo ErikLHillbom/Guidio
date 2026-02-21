@@ -7,6 +7,7 @@ class Information:
     latitude: float
     summary: str
     text: str
+    direction: str
     location: str
     time: str
     interest: str

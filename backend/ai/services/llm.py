@@ -27,6 +27,7 @@ def _build_user_prompt(ctx: Information) -> str:
         .replace("<|LATITUDE|>", str(ctx.latitude))
         .replace("<|SUMMARY|>", ctx.summary)
         .replace("<|TEXT|>", ctx.text)
+        .replace("<|DIRECTION|>", ctx.direction)
         .replace("<|LOCATION|>", ctx.location)
         .replace("<|TIME|>", ctx.time)
         .replace("<|INTEREST|>", ctx.interest)

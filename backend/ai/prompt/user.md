@@ -6,7 +6,8 @@ Reference material:
 <|TEXT|>
 
 Context
+- direction from client: <|DIRECTION|>
 - location: <|LOCATION|>
-- Latitude: <|LATITUDE|>
+- coordinates: <|LATITUDE|>
 - time: <|TIME|>
 - client interest: <|INTEREST|>
