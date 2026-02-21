@@ -3,7 +3,7 @@ import sys
 import json
 import re
 import datetime as dt
-from typing import Optional, Tuple, Any, Dict, List
+from typing import Optional, Tuple, Any, Dict, List, Set
 
 import requests
 from bs4 import BeautifulSoup, Tag, NavigableString
@@ -12,6 +12,20 @@ WIKIDATA_ENTITYDATA_URL = "https://www.wikidata.org/wiki/Special:EntityData/{ent
 WIKIPEDIA_API_URL = "https://en.wikipedia.org/w/api.php"
 WIKIPEDIA_REST_SUMMARY_URL = "https://en.wikipedia.org/api/rest_v1/page/summary/{title}"
 COMMONS_API_URL = "https://commons.wikimedia.org/w/api.php"
+OLLAMA_CHAT_URL = "http://localhost:11434/api/chat"
+OLLAMA_MODEL = "llama3.2"
+ALLOWED_CATEGORIES_ORDER: List[str] = [
+    "historic",
+    "trendy",
+    "political",
+    "economic",
+    "sport",
+    "culture",
+    "nature",
+    "activity",
+    "other",
+]
+ALLOWED_CATEGORIES: Set[str] = set(ALLOWED_CATEGORIES_ORDER)
 
 
 def utc_now_iso() -> str:
@@ -28,6 +42,157 @@ def http_post_json(url: str, *, headers: Optional[dict] = None, data: Optional[s
     r = requests.post(url, headers=headers, data=data.encode("utf-8") if isinstance(data, str) else data, timeout=30)
     r.raise_for_status()
     return r.json()
+
+
+def coerce_entity_categories(candidate: Any) -> List[str]:
+    def parse_string_categories(raw: str) -> List[str]:
+        normalized = re.sub(r"[^a-z,\s]", " ", raw.lower())
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        if not normalized:
+            return []
+
+        results: List[str] = []
+        chunks = [c.strip() for c in re.split(r"[,/|;]", normalized) if c.strip()]
+        if not chunks:
+            chunks = [normalized]
+
+        for chunk in chunks:
+            if chunk in ALLOWED_CATEGORIES:
+                results.append(chunk)
+                continue
+            for allowed in ALLOWED_CATEGORIES_ORDER:
+                if re.search(rf"\b{re.escape(allowed)}\b", chunk):
+                    results.append(allowed)
+                    break
+        return results
+
+    raw_values: List[str] = []
+    if candidate is None:
+        raw_values = []
+    elif isinstance(candidate, str):
+        raw_values = [candidate]
+    elif isinstance(candidate, list):
+        raw_values = [str(v) for v in candidate]
+    else:
+        raw_values = [str(candidate)]
+
+    deduped: List[str] = []
+    seen: Set[str] = set()
+    for raw in raw_values:
+        for parsed in parse_string_categories(raw):
+            if parsed not in seen:
+                seen.add(parsed)
+                deduped.append(parsed)
+
+    # "other" only when no specific category applies.
+    non_other = [c for c in deduped if c != "other"]
+    if non_other:
+        return non_other
+    return ["other"]
+
+
+def classify_categories_with_ollama(title: Optional[str], summary: Optional[str], text_html: Optional[str]) -> List[str]:
+    """
+    Multi-label classify entity into:
+    historic, trendy, political, economic, sport, culture, nature, activity.
+    Returns ["other"] on parsing/model/runtime ambiguity or no fit.
+    """
+    if not (title or summary or text_html):
+        return ["other"]
+
+    text_for_model = ""
+    if text_html:
+        text_for_model = BeautifulSoup(text_html, "html.parser").get_text(" ", strip=True)
+
+    payload = {
+        "title": title or "",
+        "summary": summary or "",
+        # Keep a bounded context window for fast + stable local inference.
+        "text": text_for_model[:9000],
+    }
+
+    system_prompt = """
+You are a strict multi-label classifier for travel/content entities.
+
+Your task:
+- Read the provided JSON input with keys: "title", "summary", and "text".
+- Choose one or more categories from this allowed set:
+  historic, trendy, political, economic, sport, culture, nature, activity, other.
+
+Decision policy:
+- historic: historical places, monuments, heritage, events with primary historical significance.
+- trendy: current hype/popular hotspots, fashion-forward places, viral/modern trend-led entities.
+- political: governments, political institutions, parties, leaders, diplomacy, public administration.
+- economic: finance, business, trade, markets, industry, infrastructure mainly about economy.
+- sport: teams, athletes, competitions, stadiums, sport organizations/venues.
+- culture: arts, education, traditions, museums, religion, literature, language, cultural institutions.
+- nature: parks, landscapes, ecosystems, mountains, rivers, wildlife, natural reserves.
+- activity: things primarily defined by what people do (hiking route, festival activity, nightlife activity, tours).
+
+Rules:
+- Choose all categories that clearly apply based on explicit evidence.
+- Do not include weak/inferred categories without support in the input.
+- Prefer precision over recall.
+- If evidence is weak/ambiguous or none fit clearly, return only ["other"].
+- If at least one specific category applies, do not include "other".
+- Never invent facts beyond the input.
+
+Output format requirements:
+- Return valid JSON only.
+- Use this exact schema:
+  {"categories":["<allowed label 1>","<allowed label 2>"],"confidence":<0.0-1.0>,"reason":"<very short justification>"}
+- "categories" must be lowercase labels from the allowed set.
+- Never return an empty categories array.
+- It is acceptable and often correct to output ["other"] when uncertain.
+""".strip()
+
+    try:
+        r = requests.post(
+            OLLAMA_CHAT_URL,
+            headers={"Content-Type": "application/json"},
+            json={
+                "model": OLLAMA_MODEL,
+                "stream": False,
+                "format": "json",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+                ],
+                "options": {"temperature": 0},
+            },
+            timeout=60,
+        )
+        r.raise_for_status()
+        data = r.json()
+        content = (data.get("message", {}) or {}).get("content", "")
+        if not content:
+            return ["other"]
+
+        parsed: Any = {}
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError:
+            # Support occasional fenced/non-strict outputs.
+            m = re.search(r"\{.*\}", content, flags=re.DOTALL)
+            if m:
+                try:
+                    parsed = json.loads(m.group(0))
+                except json.JSONDecodeError:
+                    parsed = {}
+
+        if isinstance(parsed, dict):
+            if "categories" in parsed:
+                return coerce_entity_categories(parsed.get("categories"))
+            if "type" in parsed:
+                # Backward-compatible fallback if model drifts to previous schema.
+                return coerce_entity_categories(parsed.get("type"))
+            return coerce_entity_categories(json.dumps(parsed, ensure_ascii=False))
+        if isinstance(parsed, list):
+            return coerce_entity_categories(parsed)
+
+        return coerce_entity_categories(content)
+    except Exception:
+        return ["other"]
 
 
 def get_wikidata_entity(entity_id: str, user_agent: str) -> dict:
@@ -289,12 +454,6 @@ def build_json(entity_id: str) -> Dict[str, Any]:
 
     lat, lon = extract_lat_lon(entity)
 
-    # type label
-    type_qid = extract_type_qid(entity)
-    type_label = None
-    if type_qid and type_qid.startswith("Q"):
-        type_label = get_entity_label(type_qid, user_agent) or type_qid
-
     # image_url (prefer Wikidata P18)
     image_url = None
     p18_filename = extract_wikidata_p18_filename(entity)
@@ -320,13 +479,18 @@ def build_json(entity_id: str) -> Dict[str, Any]:
         full_html = wikipedia_parse_full_html(en_title, user_agent)
         text_basic_html = strip_links_and_simplify_html(full_html, page_title=en_title)
 
+    entity_categories = classify_categories_with_ollama(en_title, summary, text_basic_html)
+
     out = {
         "entity_id": entity_id,
+        "title": en_title,
         "latitude": lat,
         "longitude": lon,
-        "type": type_label,
+        "categories": entity_categories,
         "image_url": image_url,
         "text": text_basic_html,   # full page (basic HTML, no hyperlinks)
+        "text_audio": "",
+        "audio_file": "",
         "summary": summary,        # intro summary
         "created_at": utc_now_iso(),
     }
