@@ -41,12 +41,12 @@ async def update_location(req: LocationRequest) -> LocationResponse | Response:
     • If the user hasn't moved significantly → **204 No Content** (nothing to do).
     • Otherwise → query the POI database and return new points of interest.
     """
-    log.info("POST /update  lat=%.6f lon=%.6f", req.latitude, req.longitude)
+    log.info("POST /update  lat=%.6f lon=%.6f force=%s", req.latitude, req.longitude, req.force)
     session = _DEFAULT_SESSION
     last = _last_positions.get(session)
 
     # Check whether the user has moved enough to warrant a new fetch
-    if last is not None:
+    if not req.force and last is not None:
         distance = haversine_m(last[0], last[1], req.latitude, req.longitude)
         if distance < settings.min_move_threshold_m:
             log.info("  → 204 (moved %.1f m, threshold %.1f m)", distance, settings.min_move_threshold_m)

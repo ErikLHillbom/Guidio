@@ -255,7 +255,7 @@ export function useProximity({
       lastFetchOrigin.current = null;
       setGridLines(null);
 
-      const allPois = await service.fetchNearbyPOIs(coords, userId);
+      const allPois = await service.fetchNearbyPOIs(coords, userId, true);
       const index = buildBucketIndex(allPois);
       bucketIndexRef.current = index;
       lastFetchOrigin.current = coords;

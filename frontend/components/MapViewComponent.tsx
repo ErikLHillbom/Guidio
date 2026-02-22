@@ -24,6 +24,7 @@ interface Props {
   queuedIds: Set<string>;
   gridLines: BucketGridLines | null;
   showCustomUserMarker: boolean;
+  mapType?: 'standard' | 'satellite' | 'hybrid';
   onPOIPress?: (poi: PointOfInterest) => void;
 }
 
@@ -40,6 +41,7 @@ export default function MapViewComponent({
   queuedIds,
   gridLines,
   showCustomUserMarker,
+  mapType = 'standard',
   onPOIPress,
 }: Props) {
   const initialRegion = userLocation
@@ -60,6 +62,7 @@ export default function MapViewComponent({
     <MapView
       style={styles.map}
       initialRegion={initialRegion}
+      mapType={mapType}
       showsUserLocation={!showCustomUserMarker}
       showsMyLocationButton={!showCustomUserMarker}
       showsCompass

@@ -54,7 +54,7 @@ function delay(ms: number): Promise<void> {
 export class MockDataService implements DataService {
   private cachedPOIs: PointOfInterest[] | null = null;
 
-  async fetchNearbyPOIs(_coordinates: Coordinates, _userId: string): Promise<PointOfInterest[]> {
+  async fetchNearbyPOIs(_coordinates: Coordinates, _userId: string, _force?: boolean): Promise<PointOfInterest[]> {
     await delay(300);
     if (!this.cachedPOIs) {
       this.cachedPOIs = ALL_MOCK_POIS;

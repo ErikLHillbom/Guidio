@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MOCK_GPS, FALLBACK_LOCATION, USER_ID, dataService } from '../config';
 import { Coordinates, POIDetail, PointOfInterest } from '../types';
@@ -93,6 +93,7 @@ export default function HomeScreen() {
   const [selectedPOI, setSelectedPOI] = useState<PointOfInterest | null>(null);
   const [poiDetail, setPOIDetail] = useState<POIDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
 
   const handlePOIPress = useCallback(
     async (poi: PointOfInterest) => {
@@ -125,6 +126,7 @@ export default function HomeScreen() {
         queuedIds={queuedIds}
         gridLines={MOCK_GPS ? gridLines : null}
         showCustomUserMarker={MOCK_GPS}
+        mapType={mapType}
         onPOIPress={handlePOIPress}
       />
 
@@ -140,6 +142,28 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.notchCover} />
+
+      <View style={styles.mapToggle}>
+        {([['standard', 'Map'], ['hybrid', 'Sat']] as const).map(([type, label]) => (
+          <Pressable
+            key={type}
+            style={[
+              styles.mapToggleBtn,
+              mapType === type && styles.mapToggleBtnActive,
+            ]}
+            onPress={() => setMapType(type)}
+          >
+            <Text
+              style={[
+                styles.mapToggleText,
+                mapType === type && styles.mapToggleTextActive,
+              ]}
+            >
+              {label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
 
       <POIDetailView
         poi={selectedPOI}
@@ -179,6 +203,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     zIndex: 20,
     elevation: 20,
+  },
+  mapToggle: {
+    position: 'absolute',
+    bottom: 48,
+    left: 16,
+    flexDirection: 'column',
+    gap: 6,
+    zIndex: 10,
+    elevation: 10,
+  },
+  mapToggleBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  mapToggleBtnActive: {
+    backgroundColor: '#1b24d3',
+    borderColor: '#1b24d3',
+  },
+  mapToggleText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#333',
+  },
+  mapToggleTextActive: {
+    color: '#ffffff',
   },
   joystickLayer: {
     ...StyleSheet.absoluteFillObject,

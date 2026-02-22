@@ -66,8 +66,8 @@ export class RealDataService implements DataService {
     return data;
   }
 
-  async fetchNearbyPOIs(coordinates: Coordinates, _userId: string): Promise<PointOfInterest[]> {
-    if (this.isPOICacheValid(coordinates)) {
+  async fetchNearbyPOIs(coordinates: Coordinates, _userId: string, force?: boolean): Promise<PointOfInterest[]> {
+    if (!force && this.isPOICacheValid(coordinates)) {
       return this.cachedPois;
     }
 
@@ -77,6 +77,7 @@ export class RealDataService implements DataService {
       body: JSON.stringify({
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
+        force: force ?? false,
       }),
     });
 
