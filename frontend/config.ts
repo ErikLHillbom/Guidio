@@ -10,9 +10,8 @@ export const MOCK_DATA = false;
 export const MOCK_GPS = true;
 
 export const SERVER_URL: string =
-  Constants.expoConfig?.extra?.serverUrl ?? 'http://localhost:8000';
-export const USER_ID: string =
-  Constants.expoConfig?.extra?.userId ?? 'default';
+  process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000';
+export const USER_ID = 'default';
 
 /** Fallback location used when GPS is unavailable in mock-GPS mode (Stockholm). */
 export const FALLBACK_LOCATION: Coordinates = {

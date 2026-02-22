@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
   Animated,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,54 +9,26 @@ import {
 } from 'react-native';
 import { Message } from '../types';
 
-const COLLAPSED_HEIGHT = 127;
 const EXPANDED_HEIGHT = 408;
-const SNAP_THRESHOLD = (COLLAPSED_HEIGHT + EXPANDED_HEIGHT) / 2;
 
 interface Props {
   messages: Message[];
 }
 
 export default function MessagePanel({ messages }: Props) {
-  const height = useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
-  const currentHeight = useRef(COLLAPSED_HEIGHT);
+  const height = useRef(new Animated.Value(0)).current;
   const [expanded, setExpanded] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const snapTo = (target: number) => {
+  const toggle = () => {
+    const target = expanded ? 0 : EXPANDED_HEIGHT;
     Animated.spring(height, {
       toValue: target,
       useNativeDriver: false,
       bounciness: 4,
     }).start();
-    currentHeight.current = target;
-    setExpanded(target === EXPANDED_HEIGHT);
+    setExpanded(!expanded);
   };
-
-  const toggle = () => {
-    snapTo(expanded ? COLLAPSED_HEIGHT : EXPANDED_HEIGHT);
-  };
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
-      onPanResponderMove: (_, g) => {
-        const next = Math.max(
-          COLLAPSED_HEIGHT,
-          Math.min(EXPANDED_HEIGHT, currentHeight.current + g.dy),
-        );
-        height.setValue(next);
-      },
-      onPanResponderRelease: (_, g) => {
-        const raw = Math.max(
-          COLLAPSED_HEIGHT,
-          currentHeight.current + g.dy,
-        );
-        snapTo(raw > SNAP_THRESHOLD ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT);
-      },
-    }),
-  ).current;
 
   const scrollToEnd = () => {
     scrollRef.current?.scrollToEnd({ animated: false });
@@ -83,10 +54,7 @@ export default function MessagePanel({ messages }: Props) {
         </View>
       </Animated.View>
 
-      <Animated.View
-        style={[styles.handleWrapper, { top: height }]}
-        {...panResponder.panHandlers}
-      >
+      <Animated.View style={[styles.handleWrapper, { top: height }]}>
         <Pressable onPress={toggle}>
           <View style={styles.handleBar}>
             <Text style={styles.handleArrow}>{expanded ? '\u25B2' : '\u25BC'}</Text>
@@ -100,7 +68,7 @@ export default function MessagePanel({ messages }: Props) {
 const styles = StyleSheet.create({
   outer: {
     position: 'absolute',
-    top: 0,
+    top: 42,
     left: 0,
     right: 0,
     zIndex: 10,
@@ -110,6 +78,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(240, 240, 240, 0.8)',
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
@@ -124,13 +93,12 @@ const styles = StyleSheet.create({
   },
   panelInner: {
     flex: 1,
-    overflow: 'hidden',
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
   },
   scrollArea: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 8,
   },
   scrollContent: {
     paddingHorizontal: 16,

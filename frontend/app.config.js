@@ -24,12 +24,12 @@ export default {
       supportsTablet: true,
       bundleIdentifier: 'com.guidio.app',
     },
-    android: {
-      package: 'com.guidio.app',
-    },
     extra: {
       userId: process.env.USER_ID,
       serverUrl: process.env.SERVER_URL || 'http://localhost:8000',
+    },
+    android: {
+      package: 'com.guidio.app',
     },
   },
 };

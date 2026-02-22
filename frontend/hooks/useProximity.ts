@@ -38,7 +38,7 @@ export function useProximity({
   const [audioProgress, setAudioProgress] = useState(0);
 
   useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true });
+    setAudioModeAsync({ playsInSilentMode: true }).catch(() => {});
   }, []);
 
   const poisRef = useRef<PointOfInterest[]>([]);
