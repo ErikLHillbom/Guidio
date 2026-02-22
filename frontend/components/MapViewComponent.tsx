@@ -105,17 +105,14 @@ export default function MapViewComponent({
           <Marker
             key={poi.id}
             coordinate={poi.coordinates}
-            anchor={isFar ? { x: 0.5, y: 0.5 } : { x: 0.5, y: 1 }}
+            anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={false}
           >
             {isFar ? (
               <View style={styles.farDot} />
             ) : (
-              <View style={styles.pinWrapper}>
-                <View style={[styles.pinHead, { backgroundColor: color }]}>
-                  <View style={styles.pinDot} />
-                </View>
-                <View style={[styles.pinTail, { borderTopColor: color }]} />
+              <View style={styles.rhombusWrapper}>
+                <View style={[styles.rhombus, { backgroundColor: color }]} />
               </View>
             )}
             <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
@@ -190,40 +187,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#ffffff',
   },
-  pinWrapper: {
-    alignItems: 'center',
-    width: 30,
-    height: 40,
-  },
-  pinHead: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    borderWidth: 2,
-    borderColor: '#ffffff',
+  rhombusWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
+    width: 32,
+    height: 32,
+  },
+  rhombus: {
+    width: 20,
+    height: 20,
+    transform: [{ rotate: '45deg' }],
+    borderWidth: 2,
+    borderColor: '#ffffff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 4,
-  },
-  pinDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ffffff',
-  },
-  pinTail: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 12,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    marginTop: -2,
   },
   farDot: {
     width: 10,
