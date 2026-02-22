@@ -4,6 +4,9 @@ import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
 import { PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
+import { geodesicDistanceMeters } from '../utils/geo';
+
+const FAR_DISTANCE_M = 300;
 
 function CalloutImage({ uri }: { uri: string }) {
   const [failed, setFailed] = useState(false);
@@ -90,14 +93,28 @@ export default function MapViewComponent({
       )}
       {pois.map((poi) => {
         const color = getPinColor(poi.id, visitedIds, queuedIds);
+        const distance = userLocation
+          ? geodesicDistanceMeters(userLocation, poi.coordinates)
+          : 0;
+        const isFar = distance > FAR_DISTANCE_M;
+
         return (
           <Marker
             key={poi.id}
             coordinate={poi.coordinates}
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={isFar ? { x: 0.5, y: 0.5 } : { x: 0.5, y: 1 }}
             tracksViewChanges={false}
           >
-            <View style={[styles.customPin, { backgroundColor: color }]} />
+            {isFar ? (
+              <View style={styles.farDot} />
+            ) : (
+              <View style={styles.pinWrapper}>
+                <View style={[styles.pinHead, { backgroundColor: color }]}>
+                  <View style={styles.pinDot} />
+                </View>
+                <View style={[styles.pinTail, { borderTopColor: color }]} />
+              </View>
+            )}
             <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
               <View style={styles.callout}>
                 <Text style={styles.calloutTitle}>{poi.name}</Text>
@@ -168,6 +185,49 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  pinWrapper: {
+    alignItems: 'center',
+    width: 30,
+    height: 40,
+  },
+  pinHead: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  pinDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+  },
+  pinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -2,
+  },
+  farDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#9E9E9E',
+    borderWidth: 1,
     borderColor: '#ffffff',
   },
   callout: {
