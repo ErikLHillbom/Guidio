@@ -18,6 +18,7 @@ class PointOfInterest(BaseModel):
     longitude: float
     categories: list[str] = []
     image_url: str | None = None
+    summary: str | None = None
 
 
 class LocationResponse(BaseModel):

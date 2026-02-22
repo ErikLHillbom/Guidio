@@ -96,21 +96,26 @@ export default function HomeScreen() {
   const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
 
   const handlePOIPress = useCallback(
-    async (poi: PointOfInterest) => {
+    (poi: PointOfInterest) => {
       setSelectedPOI(poi);
       setPOIDetail(null);
-      setDetailLoading(true);
-      try {
-        const detail = await dataService.fetchPOIDetail(poi.id);
-        setPOIDetail(detail);
-      } catch {
-        setPOIDetail(null);
-      } finally {
-        setDetailLoading(false);
-      }
+      setDetailLoading(false);
     },
     [],
   );
+
+  const handleLoadDetail = useCallback(async () => {
+    if (!selectedPOI) return;
+    setDetailLoading(true);
+    try {
+      const detail = await dataService.fetchPOIDetail(selectedPOI.id);
+      setPOIDetail(detail);
+    } catch {
+      setPOIDetail(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  }, [selectedPOI]);
 
   const handleDetailClose = useCallback(() => {
     setSelectedPOI(null);
@@ -168,7 +173,8 @@ export default function HomeScreen() {
       <POIDetailView
         poi={selectedPOI}
         detail={poiDetail}
-        loading={detailLoading}
+        detailLoading={detailLoading}
+        onLoadDetail={handleLoadDetail}
         onClose={handleDetailClose}
       />
 

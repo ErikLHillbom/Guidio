@@ -7,6 +7,7 @@ export interface PointOfInterest {
   id: string;
   name: string;
   description?: string;
+  summary?: string;
   coordinates: Coordinates;
   imageUrl?: string;
   categories?: string[];

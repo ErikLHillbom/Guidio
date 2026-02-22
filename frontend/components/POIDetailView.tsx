@@ -14,7 +14,8 @@ import { POIDetail, PointOfInterest } from '../types';
 interface Props {
   poi: PointOfInterest | null;
   detail: POIDetail | null;
-  loading: boolean;
+  detailLoading: boolean;
+  onLoadDetail: () => void;
   onClose: () => void;
 }
 
@@ -42,7 +43,7 @@ function DetailImage({ uri }: { uri: string }) {
   );
 }
 
-export default function POIDetailView({ poi, detail, loading, onClose }: Props) {
+export default function POIDetailView({ poi, detail, detailLoading, onLoadDetail, onClose }: Props) {
   if (!poi) return null;
 
   return (
@@ -69,30 +70,42 @@ export default function POIDetailView({ poi, detail, loading, onClose }: Props) 
             style={styles.body}
             contentContainerStyle={styles.bodyContent}
           >
-            {loading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#040ece" />
-                <Text style={styles.loadingText}>Loading details...</Text>
-              </View>
-            ) : detail ? (
-              <>
-                {poi.categories && poi.categories.length > 0 && (
-                  <View style={styles.categories}>
-                    {poi.categories.map((cat) => (
-                      <View key={cat} style={styles.categoryChip}>
-                        <Text style={styles.categoryText}>{cat}</Text>
-                      </View>
-                    ))}
+            {poi.categories && poi.categories.length > 0 && (
+              <View style={styles.categories}>
+                {poi.categories.map((cat) => (
+                  <View key={cat} style={styles.categoryChip}>
+                    <Text style={styles.categoryText}>{cat}</Text>
                   </View>
-                )}
-                <Text style={styles.detailText}>
-                  {stripHtml(detail.text)}
-                </Text>
-              </>
+                ))}
+              </View>
+            )}
+
+            {/* Summary – always visible when available */}
+            {poi.summary ? (
+              <Text style={styles.summaryText}>{poi.summary}</Text>
             ) : (
               <Text style={styles.detailText}>
                 {poi.description ?? 'No details available for this location.'}
               </Text>
+            )}
+
+            {/* Full article – loaded on demand */}
+            {detail ? (
+              <>
+                <View style={styles.divider} />
+                <Text style={styles.detailText}>
+                  {stripHtml(detail.text)}
+                </Text>
+              </>
+            ) : detailLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#040ece" />
+                <Text style={styles.loadingText}>Loading full article...</Text>
+              </View>
+            ) : (
+              <Pressable style={styles.readMoreButton} onPress={onLoadDetail}>
+                <Text style={styles.readMoreText}>Read more</Text>
+              </Pressable>
             )}
           </ScrollView>
         </View>
@@ -184,5 +197,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#333',
     lineHeight: 22,
+  },
+  summaryText: {
+    fontSize: 16,
+    color: '#222',
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16,
+  },
+  readMoreButton: {
+    marginTop: 16,
+    alignSelf: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: '#e8eaff',
+  },
+  readMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#040ece',
   },
 });

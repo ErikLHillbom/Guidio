@@ -12,6 +12,7 @@ interface BackendPOI {
   longitude: number;
   categories: string[];
   image_url: string | null;
+  summary: string | null;
 }
 
 interface BackendDetailResponse {
@@ -29,6 +30,7 @@ function mapPOI(raw: BackendPOI): PointOfInterest {
     coordinates: { latitude: raw.latitude, longitude: raw.longitude },
     imageUrl: raw.image_url ?? undefined,
     categories: raw.categories,
+    summary: raw.summary ?? undefined,
   };
 }
 
