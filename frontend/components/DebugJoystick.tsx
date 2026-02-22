@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, PanResponder, StyleSheet, Text, View } from 'react-native';
 import { Coordinates } from '../types';
 import { offsetCoordinates } from '../utils/geo';
+import { BRAND_BLUE } from '../constants/colors';
 
 const BASE_SIZE = 120;
 const KNOB_SIZE = 44;
@@ -153,7 +154,7 @@ const styles = StyleSheet.create({
     width: KNOB_SIZE,
     height: KNOB_SIZE,
     borderRadius: KNOB_SIZE / 2,
-    backgroundColor: 'rgba(27, 36, 211, 0.85)',
+    backgroundColor: `${BRAND_BLUE}d9`,
     borderWidth: 2,
     borderColor: '#ffffff',
   },

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { POIDetail, PointOfInterest } from '../types';
+import { BRAND_ACCENT } from '../constants/colors';
 
 interface Props {
   poi: PointOfInterest | null;
@@ -100,7 +101,7 @@ function POIDetailView({ poi, detail, detailLoading, onLoadDetail, onClose }: Pr
               </>
             ) : detailLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#040ece" />
+                <ActivityIndicator size="small" color={BRAND_ACCENT} />
                 <Text style={styles.loadingText}>Loading full article...</Text>
               </View>
             ) : (
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: 12,
-    color: '#040ece',
+    color: BRAND_ACCENT,
     fontWeight: '500',
   },
   detailText: {
@@ -223,6 +224,6 @@ const styles = StyleSheet.create({
   readMoreText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#040ece',
+    color: BRAND_ACCENT,
   },
 });

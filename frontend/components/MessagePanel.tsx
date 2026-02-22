@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Message } from '../types';
+import { BRAND_BLUE } from '../constants/colors';
 
 const COLLAPSED_HEIGHT = 42;
 const EXPANDED_HEIGHT = 408;
@@ -163,7 +164,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#1b24d3',
+    backgroundColor: BRAND_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
   },

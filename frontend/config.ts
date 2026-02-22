@@ -1,10 +1,6 @@
 import Constants from 'expo-constants';
 import { Coordinates } from './types';
-import { DataService } from './services/DataService';
 import { RealDataService } from './services/apiService';
-
-/** Use bundled mock data instead of the real backend. */
-export const MOCK_DATA = false;
 
 /** Show joystick and override GPS with manual control. */
 export const MOCK_GPS = true;
@@ -20,12 +16,4 @@ export const FALLBACK_LOCATION: Coordinates = {
   longitude: 18.0686,
 };
 
-function createDataService(): DataService {
-  if (MOCK_DATA) {
-    const { MockDataService } = require('./services/mockApiService');
-    return new MockDataService();
-  }
-  return new RealDataService(SERVER_URL);
-}
-
-export const dataService: DataService = createDataService();
+export const dataService = new RealDataService(SERVER_URL);

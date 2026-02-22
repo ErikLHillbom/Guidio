@@ -15,7 +15,6 @@ interface UseTrackingOptions {
 
 export function useTracking({ debugMode, fallbackLocation }: UseTrackingOptions) {
   const [tracking, setTracking] = useState(false);
-  const [startLoading, setStartLoading] = useState(false);
   const [userLocation, setUserLocation] = useState<Coordinates | null>(null);
   const userLocationRef = useRef<Coordinates | null>(null);
   const locationSub = useRef<Location.LocationSubscription | null>(null);
@@ -45,12 +44,10 @@ export function useTracking({ debugMode, fallbackLocation }: UseTrackingOptions)
   const start = useCallback(
     async (onGPSUpdate?: (coords: Coordinates) => void): Promise<Coordinates | null> => {
       setTracking(true);
-      setStartLoading(true);
 
       const initial = await resolveInitialLocation();
       if (!initial) {
         setTracking(false);
-        setStartLoading(false);
         return null;
       }
 
@@ -75,10 +72,6 @@ export function useTracking({ debugMode, fallbackLocation }: UseTrackingOptions)
     setTracking(false);
   }, []);
 
-  const finishLoading = useCallback(() => {
-    setStartLoading(false);
-  }, []);
-
   useEffect(() => {
     return () => {
       locationSub.current?.remove();
@@ -87,12 +80,10 @@ export function useTracking({ debugMode, fallbackLocation }: UseTrackingOptions)
 
   return {
     tracking,
-    startLoading,
     userLocation,
     userLocationRef,
     updatePosition,
     start,
     stop,
-    finishLoading,
   } as const;
 }

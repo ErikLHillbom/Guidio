@@ -5,6 +5,8 @@ import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
 import { PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
+import { FALLBACK_LOCATION } from '../config';
+import { BRAND_BLUE, BRAND_ACCENT, STATUS_VISITED, STATUS_QUEUED, IOS_BLUE } from '../constants/colors';
 
 const MAX_RENDERED_MARKERS = 40;
 const MARKER_ANCHOR = { x: 0.5, y: 0.5 } as const;
@@ -35,9 +37,9 @@ interface Props {
 }
 
 function getPinColor(id: string, visitedIds: Set<string>, queuedIds: Set<string>): string {
-  if (visitedIds.has(id)) return '#4CAF50';
-  if (queuedIds.has(id)) return '#FFC107';
-  return '#1b24d3';
+  if (visitedIds.has(id)) return STATUS_VISITED;
+  if (queuedIds.has(id)) return STATUS_QUEUED;
+  return BRAND_BLUE;
 }
 
 function MapViewComponent({
@@ -58,8 +60,7 @@ function MapViewComponent({
         longitudeDelta: 0.01,
       }
     : {
-        latitude: 59.3293,
-        longitude: 18.0686,
+        ...FALLBACK_LOCATION,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
       }, [userLocation]);
@@ -185,14 +186,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#007AFF',
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  customPin: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    backgroundColor: IOS_BLUE,
     borderWidth: 2,
     borderColor: '#ffffff',
   },
@@ -238,19 +232,19 @@ const styles = StyleSheet.create({
   },
   calloutVisited: {
     fontSize: 11,
-    color: '#4CAF50',
+    color: STATUS_VISITED,
     fontWeight: 'bold',
     marginTop: 4,
   },
   calloutQueued: {
     fontSize: 11,
-    color: '#FFC107',
+    color: STATUS_QUEUED,
     fontWeight: 'bold',
     marginTop: 4,
   },
   calloutTapHint: {
     fontSize: 11,
-    color: '#040ece',
+    color: BRAND_ACCENT,
     marginTop: 6,
     textAlign: 'center',
   },

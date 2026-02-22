@@ -1,19 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { BRAND_BLUE, BRAND_BLUE_LIGHT, AMBER, AMBER_LIGHT } from '../constants/colors';
 
 interface Props {
   active: boolean;
-  loading: boolean;
   audioProgress: number;
   wanderingAway: boolean;
   onPress: () => void;
 }
 
 const BAR_COUNT = 12;
-const DARK_BLUE = '#1b24d3';
-const LIGHT_BLUE = '#5b6aff';
-const AMBER = '#d97706';
-const AMBER_LIGHT = '#f59e0b';
 
 function VoiceBars({ animate }: { animate: boolean }) {
   const animations = useRef(
@@ -74,11 +70,11 @@ function VoiceBars({ animate }: { animate: boolean }) {
   );
 }
 
-function StartButton({ active, loading, audioProgress, wanderingAway, onPress }: Props) {
+function StartButton({ active, audioProgress, wanderingAway, onPress }: Props) {
   const isPlaying = active && audioProgress > 0;
 
-  const buttonBg = wanderingAway ? AMBER_LIGHT : active ? LIGHT_BLUE : DARK_BLUE;
-  const fillBg = wanderingAway ? AMBER : DARK_BLUE;
+  const buttonBg = wanderingAway ? AMBER_LIGHT : active ? BRAND_BLUE_LIGHT : BRAND_BLUE;
+  const fillBg = wanderingAway ? AMBER : BRAND_BLUE;
 
   return (
     <Pressable
@@ -112,7 +108,7 @@ export default React.memo(StartButton);
 
 const styles = StyleSheet.create({
   button: {
-    backgroundColor: DARK_BLUE,
+    backgroundColor: BRAND_BLUE,
     paddingHorizontal: 40,
     paddingVertical: 14,
     borderRadius: 32,
@@ -131,7 +127,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    backgroundColor: DARK_BLUE,
+    backgroundColor: BRAND_BLUE,
   },
   label: {
     fontFamily: 'Silkscreen_400Regular',

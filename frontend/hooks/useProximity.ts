@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { Image as ExpoImage } from 'expo-image';
 import { Coordinates, PointOfInterest } from '../types';
 import { DataService } from '../services/DataService';
 import { isWithinProximity, PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
@@ -13,9 +13,9 @@ import {
   BucketIndex,
   BucketGridLines,
 } from '../services/bucketService';
+import { useAudioPlayer } from './useAudioPlayer';
 
 const REFETCH_DISTANCE_M = 300;
-const WANDER_DISTANCE_M = 100;
 
 interface UseProximityOptions {
   service: DataService;
@@ -36,12 +36,9 @@ export function useProximity({
   const [visitedIds, setVisitedIds] = useState<Set<string>>(new Set());
   const [queuedIds, setQueuedIds] = useState<Set<string>>(new Set());
   const [gridLines, setGridLines] = useState<BucketGridLines | null>(null);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [wanderingAway, setWanderingAway] = useState(false);
 
-  useEffect(() => {
-    setAudioModeAsync({ playsInSilentMode: true });
-  }, []);
+  const { audioProgress, wanderingAway, play: playAudio, skip: skipCurrent, cleanup: cleanupAudio } =
+    useAudioPlayer(userLocationRef);
 
   const poisRef = useRef<PointOfInterest[]>([]);
   const visitedPoiIds = useRef<Set<string>>(new Set());
@@ -51,85 +48,8 @@ export function useProximity({
   const guideQueue = useRef<PointOfInterest[]>([]);
   const guideRunning = useRef(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const currentPlayer = useRef<AudioPlayer | null>(null);
-  const progressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastFetchOrigin = useRef<Coordinates | null>(null);
   const refetchInFlight = useRef(false);
-  const wanderTargetMs = useRef<number | null>(null);
-
-  const playAudio = useCallback((
-    uri: string,
-    breakpointsMs: number[],
-    poiCoordinates: Coordinates,
-    onWanderingAway?: () => void,
-  ): Promise<void> => {
-    return new Promise<void>((resolve) => {
-      try {
-        if (progressPollRef.current) {
-          clearInterval(progressPollRef.current);
-          progressPollRef.current = null;
-        }
-        if (currentPlayer.current) {
-          currentPlayer.current.remove();
-          currentPlayer.current = null;
-        }
-        setAudioProgress(0);
-        setWanderingAway(false);
-        wanderTargetMs.current = null;
-
-        const player = createAudioPlayer(uri);
-        currentPlayer.current = player;
-        let hasStartedPlaying = false;
-
-        progressPollRef.current = setInterval(() => {
-          if (player.playing) hasStartedPlaying = true;
-
-          if (player.isLoaded && player.duration > 0) {
-            const currentTimeMs = player.currentTime * 1000;
-            setAudioProgress(player.currentTime / player.duration);
-
-            if (wanderTargetMs.current !== null) {
-              if (currentTimeMs >= wanderTargetMs.current) {
-                player.pause();
-              }
-            } else {
-              const userPos = userLocationRef.current;
-              if (userPos) {
-                const dist = geodesicDistanceMeters(userPos, poiCoordinates);
-                if (dist > PROXIMITY_THRESHOLD_METERS + WANDER_DISTANCE_M) {
-                  const nextBp = breakpointsMs.find(bp => bp > currentTimeMs);
-                  if (nextBp !== undefined) {
-                    wanderTargetMs.current = nextBp;
-                    setWanderingAway(true);
-                    onWanderingAway?.();
-                  } else {
-                    player.pause();
-                  }
-                }
-              }
-            }
-          }
-
-          if (hasStartedPlaying && !player.playing) {
-            clearInterval(progressPollRef.current!);
-            progressPollRef.current = null;
-            setAudioProgress(0);
-            setWanderingAway(false);
-            wanderTargetMs.current = null;
-            player.remove();
-            if (currentPlayer.current === player) currentPlayer.current = null;
-            resolve();
-          }
-        }, 200);
-
-        player.play();
-      } catch {
-        setAudioProgress(0);
-        setWanderingAway(false);
-        resolve();
-      }
-    });
-  }, [userLocationRef]);
 
   const markVisited = useCallback((poiId: string) => {
     visitedPoiIds.current.add(poiId);
@@ -152,12 +72,13 @@ export function useProximity({
           );
           addMessage(guide.transcription);
           if (guide.audioUrl) {
-            await playAudio(
-              guide.audioUrl,
-              guide.audioBreakpointsMs,
-              poi.coordinates,
-              () => addMessage(`Moving away from ${poi.name}\u2026 ending at next pause.`),
-            );
+            await playAudio({
+              uri: guide.audioUrl,
+              breakpointsMs: guide.audioBreakpointsMs,
+              poiCoordinates: poi.coordinates,
+              onWanderingAway: () =>
+                addMessage(`Moving away from ${poi.name}\u2026 ending at next pause.`),
+            });
           }
         } catch {
           addMessage(`Unable to load guide info for ${poi.name}.`);
@@ -188,12 +109,6 @@ export function useProximity({
         nearby.push(poi);
       }
       if (nearby.length === 0) return;
-
-      nearby.sort(
-        (a, b) =>
-          geodesicDistanceMeters(coords, a.coordinates) -
-          geodesicDistanceMeters(coords, b.coordinates),
-      );
 
       guideQueue.current.push(...nearby);
 
@@ -226,6 +141,25 @@ export function useProximity({
     [debugMode],
   );
 
+  const applyFetchedPOIs = useCallback(
+    (allPois: PointOfInterest[], origin: Coordinates) => {
+      const index = buildBucketIndex(allPois);
+      bucketIndexRef.current = index;
+      lastFetchOrigin.current = origin;
+
+      const keys = getActiveKeys(origin);
+      const active = getActivePOIs(index, keys);
+      currentBucketRef.current = getBucketKey(origin);
+      poisRef.current = active;
+      setPois(active);
+      if (debugMode) setGridLines(getGridLines(origin));
+
+      const urls = allPois.map((p) => p.imageUrl).filter((u): u is string => !!u);
+      if (urls.length > 0) ExpoImage.prefetch(urls);
+    },
+    [debugMode],
+  );
+
   const maybeRefetch = useCallback(
     async (pos: Coordinates) => {
       if (refetchInFlight.current) return;
@@ -238,24 +172,14 @@ export function useProximity({
       refetchInFlight.current = true;
       try {
         const allPois = await service.fetchNearbyPOIs(pos, userId);
-        const index = buildBucketIndex(allPois);
-        bucketIndexRef.current = index;
-        currentBucketRef.current = '';
-        lastFetchOrigin.current = pos;
-
-        const keys = getActiveKeys(pos);
-        const active = getActivePOIs(index, keys);
-        currentBucketRef.current = getBucketKey(pos);
-        poisRef.current = active;
-        setPois(active);
-        if (debugMode) setGridLines(getGridLines(pos));
+        applyFetchedPOIs(allPois, pos);
       } catch {
         // Backend unavailable
       } finally {
         refetchInFlight.current = false;
       }
     },
-    [service, userId, debugMode],
+    [service, userId, applyFetchedPOIs],
   );
 
   const startInterval = useCallback(() => {
@@ -269,34 +193,18 @@ export function useProximity({
     }, 1000);
   }, [userLocationRef, updateBucket, checkProximity, maybeRefetch]);
 
-  const skipCurrent = useCallback(() => {
-    if (currentPlayer.current) {
-      currentPlayer.current.pause();
-    }
-  }, []);
-
   const stopInterval = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    if (progressPollRef.current) {
-      clearInterval(progressPollRef.current);
-      progressPollRef.current = null;
-    }
-    if (currentPlayer.current) {
-      currentPlayer.current.remove();
-      currentPlayer.current = null;
-    }
-    setAudioProgress(0);
-    setWanderingAway(false);
-    wanderTargetMs.current = null;
+    cleanupAudio();
     guideQueue.current = [];
     guideRunning.current = false;
-  }, []);
+  }, [cleanupAudio]);
 
   const loadPOIs = useCallback(
-    async (coords: Coordinates, userId: string) => {
+    async (coords: Coordinates, uid: string) => {
       visitedPoiIds.current.clear();
       detectedPoiIds.current.clear();
       setVisitedIds(new Set());
@@ -306,28 +214,18 @@ export function useProximity({
       lastFetchOrigin.current = null;
       setGridLines(null);
 
-      const allPois = await service.fetchNearbyPOIs(coords, userId, true);
-      const index = buildBucketIndex(allPois);
-      bucketIndexRef.current = index;
-      lastFetchOrigin.current = coords;
+      const allPois = await service.fetchNearbyPOIs(coords, uid, true);
+      applyFetchedPOIs(allPois, coords);
 
-      const keys = getActiveKeys(coords);
-      const active = getActivePOIs(index, keys);
-      currentBucketRef.current = getBucketKey(coords);
-      setPois(active);
-      poisRef.current = active;
-
-      if (debugMode) setGridLines(getGridLines(coords));
-
-      return { total: allPois.length, nearby: active.length };
+      return { total: allPois.length, nearby: poisRef.current.length };
     },
-    [service, debugMode],
+    [service, applyFetchedPOIs],
   );
 
   const rebuildIndex = useCallback(
-    async (coords: Coordinates, userId: string) => {
+    async (coords: Coordinates, uid: string) => {
       try {
-        const allPois = await service.fetchNearbyPOIs(coords, userId);
+        const allPois = await service.fetchNearbyPOIs(coords, uid);
         bucketIndexRef.current = buildBucketIndex(allPois);
         currentBucketRef.current = '';
       } catch {

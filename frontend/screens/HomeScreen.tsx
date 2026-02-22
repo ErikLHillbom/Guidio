@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MOCK_GPS, FALLBACK_LOCATION, USER_ID, dataService } from '../config';
-import { Coordinates, POIDetail, PointOfInterest } from '../types';
+import { Coordinates } from '../types';
+import { BRAND_BLUE } from '../constants/colors';
 
 import { useMessages } from '../hooks/useMessages';
 import { useTracking } from '../hooks/useTracking';
 import { useProximity } from '../hooks/useProximity';
+import { usePOIDetail } from '../hooks/usePOIDetail';
 
 import MapViewComponent from '../components/MapViewComponent';
 import StartButton from '../components/StartButton';
@@ -16,20 +18,18 @@ import POIDetailView from '../components/POIDetailView';
 
 export default function HomeScreen() {
   const { messages, addMessage } = useMessages();
-  // Loading bar state
+
   const [initializing, setInitializing] = useState(false);
   const progressAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const {
     tracking,
-    startLoading,
     userLocation,
     userLocationRef,
     updatePosition,
     start,
     stop,
-    finishLoading,
   } = useTracking({
     debugMode: MOCK_GPS,
     fallbackLocation: FALLBACK_LOCATION,
@@ -39,7 +39,6 @@ export default function HomeScreen() {
     pois,
     visitedIds,
     queuedIds,
-    gridLines,
     audioProgress,
     wanderingAway,
     loadPOIs,
@@ -55,45 +54,35 @@ export default function HomeScreen() {
     userId: USER_ID,
   });
 
-  const handleStart = useCallback(async () => {
-    if (tracking) {
-      if (audioProgress > 0) {
-        skipCurrent();
-        addMessage('Skipped.');
-        return;
-      }
-      stopInterval();
-      stop();
-      addMessage('Guide stopped.');
-      return;
-    }
+  const {
+    selectedPOI,
+    detail: poiDetail,
+    detailLoading,
+    select: handlePOIPress,
+    loadDetail: handleLoadDetail,
+    close: handleDetailClose,
+  } = usePOIDetail(dataService);
 
-    const onGPSUpdate = (coords: Coordinates) => {
-      rebuildIndex(coords, USER_ID);
-    };
+  const [mapType, setMapType] = useState<'standard' | 'hybrid'>('standard');
 
-    const initialLocation = await start(onGPSUpdate);
-    if (!initialLocation) return;
+  const runLoadingAnimation = useCallback(
+    (onLoaded: () => void) => {
+      setInitializing(true);
+      progressAnim.setValue(0);
+      fadeAnim.setValue(1);
 
-    setInitializing(true);
-    progressAnim.setValue(0);
-    fadeAnim.setValue(1);
-    Animated.timing(progressAnim, {
-      toValue: 0.85,
-      duration: 2500,
-      useNativeDriver: false,
-    }).start();
+      Animated.timing(progressAnim, {
+        toValue: 0.85,
+        duration: 2500,
+        useNativeDriver: false,
+      }).start();
 
-    try {
-      const counts = await loadPOIs(initialLocation, USER_ID);
-      addMessage(
-        `Guide started! Found ${counts.total} points of interest (${counts.nearby} nearby).`,
-      );
-    } catch {
-      addMessage('Guide started! Walk around to discover points of interest.');
-    }
+      onLoaded();
+    },
+    [progressAnim, fadeAnim],
+  );
 
-    // Finish progress bar and fade out
+  const finishLoadingAnimation = useCallback(() => {
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 300,
@@ -105,10 +94,53 @@ export default function HomeScreen() {
         useNativeDriver: true,
       }).start(() => setInitializing(false));
     });
+  }, [progressAnim, fadeAnim]);
 
-    startInterval();
-    finishLoading();
-  }, [tracking, audioProgress, skipCurrent, stop, stopInterval, start, loadPOIs, startInterval, finishLoading, addMessage, rebuildIndex]);
+  const handleStop = useCallback(() => {
+    stopInterval();
+    stop();
+    addMessage('Guide stopped.');
+  }, [stopInterval, stop, addMessage]);
+
+  const handleSkip = useCallback(() => {
+    skipCurrent();
+    addMessage('Skipped.');
+  }, [skipCurrent, addMessage]);
+
+  const handleStartGuide = useCallback(async () => {
+    const onGPSUpdate = (coords: Coordinates) => {
+      rebuildIndex(coords, USER_ID);
+    };
+
+    const initialLocation = await start(onGPSUpdate);
+    if (!initialLocation) return;
+
+    runLoadingAnimation(async () => {
+      try {
+        const counts = await loadPOIs(initialLocation, USER_ID);
+        addMessage(
+          `Guide started! Found ${counts.total} points of interest (${counts.nearby} nearby).`,
+        );
+      } catch {
+        addMessage('Guide started! Walk around to discover points of interest.');
+      }
+
+      finishLoadingAnimation();
+      startInterval();
+    });
+  }, [start, rebuildIndex, runLoadingAnimation, finishLoadingAnimation, loadPOIs, addMessage, startInterval]);
+
+  const handleButtonPress = useCallback(() => {
+    if (tracking) {
+      if (audioProgress > 0) {
+        handleSkip();
+      } else {
+        handleStop();
+      }
+      return;
+    }
+    handleStartGuide();
+  }, [tracking, audioProgress, handleSkip, handleStop, handleStartGuide]);
 
   const handleJoystickMove = useCallback(
     (coords: Coordinates) => {
@@ -117,41 +149,8 @@ export default function HomeScreen() {
     [updatePosition],
   );
 
-  const [selectedPOI, setSelectedPOI] = useState<PointOfInterest | null>(null);
-  const [poiDetail, setPOIDetail] = useState<POIDetail | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
-
-  const handlePOIPress = useCallback(
-    (poi: PointOfInterest) => {
-      setSelectedPOI(poi);
-      setPOIDetail(null);
-      setDetailLoading(false);
-    },
-    [],
-  );
-
-  const handleLoadDetail = useCallback(async () => {
-    if (!selectedPOI) return;
-    setDetailLoading(true);
-    try {
-      const detail = await dataService.fetchPOIDetail(selectedPOI.id);
-      setPOIDetail(detail);
-    } catch {
-      setPOIDetail(null);
-    } finally {
-      setDetailLoading(false);
-    }
-  }, [selectedPOI]);
-
-  const handleDetailClose = useCallback(() => {
-    setSelectedPOI(null);
-    setPOIDetail(null);
-  }, []);
-
   return (
     <View style={styles.container}>
-      {/* Full-screen semi-transparent loading overlay */}
       {initializing && (
         <Animated.View style={[styles.loadingOverlay, { opacity: fadeAnim }]} pointerEvents="none">
           <View style={styles.loadingContent}>
@@ -179,10 +178,9 @@ export default function HomeScreen() {
       <View style={styles.startContainer}>
         <StartButton
           active={tracking}
-          loading={startLoading}
           audioProgress={audioProgress}
           wanderingAway={wanderingAway}
-          onPress={handleStart}
+          onPress={handleButtonPress}
         />
       </View>
 
@@ -267,7 +265,7 @@ const styles = StyleSheet.create({
   },
   loadingBar: {
     height: '100%',
-    backgroundColor: '#1b24d3',
+    backgroundColor: BRAND_BLUE,
     borderRadius: 7,
   },
   startContainer: {
@@ -303,8 +301,8 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.15)',
   },
   mapToggleBtnActive: {
-    backgroundColor: '#1b24d3',
-    borderColor: '#1b24d3',
+    backgroundColor: BRAND_BLUE,
+    borderColor: BRAND_BLUE,
   },
   mapToggleText: {
     fontSize: 12,
