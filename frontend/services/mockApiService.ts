@@ -1,48 +1,15 @@
-import { Asset } from 'expo-asset';
-import mockData from '../mock_data/mock_backend_response.json';
-import mockDetailData from '../mock_data/mock_backend_response_detailed.json';
 import { Coordinates, GuideResponse, POIDetail, PointOfInterest } from '../types';
 import { DataService } from './DataService';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const MOCK_AUDIO_MODULE = require('../mock_data/Q1754.mp3');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const MOCK_TRANSCRIPTION_MODULE = require('../mock_data/Q1754.txt');
+// no audio or transcription data in simplified mock
 
-let cachedTranscription: string | null = null;
+// remove external mock JSON data; start with empty set
+const ALL_MOCK_POIS: PointOfInterest[] = [];
 
-async function loadMockTranscription(): Promise<string> {
-  if (cachedTranscription) return cachedTranscription;
-  const asset = Asset.fromModule(MOCK_TRANSCRIPTION_MODULE);
-  await asset.downloadAsync();
-  const uri = asset.localUri ?? asset.uri;
-  const response = await fetch(uri);
-  cachedTranscription = await response.text();
-  return cachedTranscription;
-}
-
-interface MockPOIEntry {
-  entity_id: string;
-  title: string;
-  latitude: number;
-  longitude: number;
-  categories: string[];
-  image_url: string;
-}
-
-const ALL_MOCK_POIS: PointOfInterest[] = (
-  mockData.points_of_interest as MockPOIEntry[]
-).map((p) => ({
-  id: p.entity_id,
-  name: p.title,
-  coordinates: { latitude: p.latitude, longitude: p.longitude },
-  imageUrl: p.image_url,
-  categories: p.categories,
-}));
-
+// arbitrary default start location – application may override when mocking
 export const MOCK_START_LOCATION: Coordinates = {
-  latitude: mockData.latitude,
-  longitude: mockData.longitude,
+  latitude: 0,
+  longitude: 0,
 };
 
 const SIMULATED_DELAY_MS = 1500;
@@ -52,12 +19,13 @@ function delay(ms: number): Promise<void> {
 }
 
 export class MockDataService implements DataService {
-  private cachedPOIs: PointOfInterest[] | null = null;
+  private cachedPOIs: PointOfInterest[] | null = null; // will accumulate discovered POIs
 
   async fetchNearbyPOIs(_coordinates: Coordinates, _userId: string, _force?: boolean): Promise<PointOfInterest[]> {
     await delay(300);
     if (!this.cachedPOIs) {
-      this.cachedPOIs = ALL_MOCK_POIS;
+      // start with base set; further fetches may push more entries
+      this.cachedPOIs = [...ALL_MOCK_POIS];
     }
     return this.cachedPOIs;
   }
@@ -71,16 +39,12 @@ export class MockDataService implements DataService {
 
     const poi = ALL_MOCK_POIS.find((p) => p.id === poiId);
 
-    const asset = Asset.fromModule(MOCK_AUDIO_MODULE);
-    await asset.downloadAsync();
-
-    const transcription = await loadMockTranscription();
-
+    // return minimal guide info with no audio
     return {
       poiId,
       poiName,
-      transcription,
-      audioUrl: asset.localUri ?? asset.uri,
+      transcription: '',
+      audioUrl: '',
       imageUrl: poi?.imageUrl ?? '',
     };
   }
@@ -91,17 +55,7 @@ export class MockDataService implements DataService {
     const poi = ALL_MOCK_POIS.find((p) => p.id === poiId);
     const title = poi?.name ?? poiId;
 
-    // Use real detailed data if it matches, otherwise generate a placeholder
-    if (mockDetailData.entity_id === poiId) {
-      return {
-        entityId: mockDetailData.entity_id,
-        title: mockDetailData.title,
-        text: mockDetailData.text,
-        textAudio: mockDetailData.text_audio,
-        audioFile: mockDetailData.audio_file,
-      };
-    }
-
+    // always return a simple placeholder for detail data
     return {
       entityId: poiId,
       title,
