@@ -129,7 +129,7 @@ export default function HomeScreen() {
         pois={pois}
         visitedIds={visitedIds}
         queuedIds={queuedIds}
-        gridLines={MOCK_GPS ? gridLines : null}
+        gridLines={null}
         showCustomUserMarker={MOCK_GPS}
         mapType={mapType}
         onPOIPress={handlePOIPress}
