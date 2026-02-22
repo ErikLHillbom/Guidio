@@ -31,7 +31,7 @@ async def fetch_pois_from_db(
                 }
             }
         }
-    )
+    ).limit(settings.max_pois)
 
     pois: list[PointOfInterest] = []
     async for doc in cursor:
@@ -75,6 +75,18 @@ async def fetch_poi_detail(entity_id: str) -> PoiDetail | None:
         audio_duration_ms=doc.get("audio_duration_ms"),
         audio_breakpoints_ms=doc.get("audio_breakpoints_ms", []),
     )
+
+
+async def fetch_poi_audio_path(entity_id: str) -> str | None:
+    """Return just the audio_file path for a POI, or None if not found."""
+    db = get_db()
+    doc = await db.pois.find_one(
+        {"entity_id": entity_id},
+        {"audio_file": 1, "_id": 0},
+    )
+    if doc is None:
+        return None
+    return doc.get("audio_file")
 
 
 def _text_relevance_score(doc: Mapping[str, Any]) -> int:

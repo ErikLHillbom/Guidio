@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
 import { PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
-import { geodesicDistanceMeters } from '../utils/geo';
 
-const FAR_DISTANCE_M = 300;
+const MAX_RENDERED_MARKERS = 40;
+const MARKER_ANCHOR = { x: 0.5, y: 0.5 } as const;
 
 function CalloutImage({ uri }: { uri: string }) {
   return (
@@ -40,7 +40,7 @@ function getPinColor(id: string, visitedIds: Set<string>, queuedIds: Set<string>
   return '#1b24d3';
 }
 
-export default function MapViewComponent({
+function MapViewComponent({
   userLocation,
   pois,
   visitedIds,
@@ -50,7 +50,7 @@ export default function MapViewComponent({
   mapType = 'standard',
   onPOIPress,
 }: Props) {
-  const initialRegion = userLocation
+  const initialRegion = useMemo(() => userLocation
     ? {
         latitude: userLocation.latitude,
         longitude: userLocation.longitude,
@@ -62,7 +62,15 @@ export default function MapViewComponent({
         longitude: 18.0686,
         latitudeDelta: 0.05,
         longitudeDelta: 0.05,
-      };
+      }, [userLocation]);
+
+  const poiRenderData = useMemo(() =>
+    pois.slice(0, MAX_RENDERED_MARKERS).map(poi => ({
+      poi,
+      color: getPinColor(poi.id, visitedIds, queuedIds),
+    })),
+    [pois, visitedIds, queuedIds],
+  );
 
   return (
     <MapView
@@ -78,7 +86,7 @@ export default function MapViewComponent({
         <>
           <Marker
             coordinate={userLocation}
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={MARKER_ANCHOR}
             flat
           >
             <View style={styles.userDotOuter}>
@@ -94,27 +102,16 @@ export default function MapViewComponent({
           />
         </>
       )}
-      {pois.map((poi) => {
-        const color = getPinColor(poi.id, visitedIds, queuedIds);
-        const distance = userLocation
-          ? geodesicDistanceMeters(userLocation, poi.coordinates)
-          : 0;
-        const isFar = distance > FAR_DISTANCE_M;
-
-        return (
+      {poiRenderData.map(({ poi, color }) => (
           <Marker
             key={poi.id}
             coordinate={poi.coordinates}
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={MARKER_ANCHOR}
             tracksViewChanges={false}
           >
-            {isFar ? (
-              <View style={styles.farDot} />
-            ) : (
-              <View style={styles.rhombusWrapper}>
-                <View style={[styles.rhombus, { backgroundColor: color }]} />
-              </View>
-            )}
+            <View style={styles.rhombusWrapper}>
+              <View style={[styles.rhombus, { backgroundColor: color }]} />
+            </View>
             <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
               <View style={styles.callout}>
                 <Text style={styles.calloutTitle}>{poi.name}</Text>
@@ -132,8 +129,7 @@ export default function MapViewComponent({
               </View>
             </Callout>
           </Marker>
-        );
-      })}
+        ))}
       {gridLines?.horizontalLines.map((line, i) => (
         <Polyline
           key={`grid-h-${i}`}
@@ -159,6 +155,19 @@ export default function MapViewComponent({
     </MapView>
   );
 }
+
+export default React.memo(MapViewComponent, (prev, next) => {
+  return (
+    prev.userLocation === next.userLocation &&
+    prev.pois === next.pois &&
+    prev.visitedIds === next.visitedIds &&
+    prev.queuedIds === next.queuedIds &&
+    prev.gridLines === next.gridLines &&
+    prev.mapType === next.mapType &&
+    prev.showCustomUserMarker === next.showCustomUserMarker &&
+    prev.onPOIPress === next.onPOIPress
+  );
+});
 
 const styles = StyleSheet.create({
   map: {
@@ -204,14 +213,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 4,
-  },
-  farDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#9E9E9E',
-    borderWidth: 1,
-    borderColor: '#ffffff',
   },
   callout: {
     width: 200,

@@ -74,7 +74,7 @@ function VoiceBars({ animate }: { animate: boolean }) {
   );
 }
 
-export default function StartButton({ active, loading, audioProgress, wanderingAway, onPress }: Props) {
+function StartButton({ active, loading, audioProgress, wanderingAway, onPress }: Props) {
   const isPlaying = active && audioProgress > 0;
 
   const buttonBg = wanderingAway ? AMBER_LIGHT : active ? LIGHT_BLUE : DARK_BLUE;
@@ -107,6 +107,8 @@ export default function StartButton({ active, loading, audioProgress, wanderingA
     </Pressable>
   );
 }
+
+export default React.memo(StartButton);
 
 const styles = StyleSheet.create({
   button: {

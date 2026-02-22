@@ -36,6 +36,8 @@ function mapPOI(raw: BackendPOI): PointOfInterest {
   };
 }
 
+const DETAIL_CACHE_MAX = 50;
+
 export class RealDataService implements DataService {
   private serverUrl: string;
   private cachedPois: PointOfInterest[] = [];
@@ -55,9 +57,21 @@ export class RealDataService implements DataService {
     return `${this.serverUrl}${API_PREFIX}/audio/${entityId}`;
   }
 
+  private setDetailCache(entityId: string, data: BackendDetailResponse) {
+    if (this.detailCache.size >= DETAIL_CACHE_MAX) {
+      const oldest = this.detailCache.keys().next().value;
+      if (oldest) this.detailCache.delete(oldest);
+    }
+    this.detailCache.set(entityId, data);
+  }
+
   private async fetchDetail(entityId: string): Promise<BackendDetailResponse> {
     const cached = this.detailCache.get(entityId);
-    if (cached) return cached;
+    if (cached) {
+      this.detailCache.delete(entityId);
+      this.detailCache.set(entityId, cached);
+      return cached;
+    }
 
     const response = await fetch(
       `${this.serverUrl}${API_PREFIX}/detail/${entityId}`,
@@ -66,7 +80,7 @@ export class RealDataService implements DataService {
       throw new Error(`Detail request failed: ${response.status}`);
     }
     const data: BackendDetailResponse = await response.json();
-    this.detailCache.set(entityId, data);
+    this.setDetailCache(entityId, data);
     return data;
   }
 

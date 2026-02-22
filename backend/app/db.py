@@ -14,13 +14,14 @@ def get_db() -> AsyncIOMotorDatabase:
 
 
 async def connect() -> None:
-    """Open the MongoDB connection and ensure the 2dsphere index exists."""
+    """Open the MongoDB connection and ensure indexes exist."""
     global _client
     _client = AsyncIOMotorClient(settings.mongo_url)
 
-    # Create a geospatial index so $nearSphere queries are fast
     db = _client[settings.mongo_db]
     await db.pois.create_index([("location", "2dsphere")])
+    await db.pois.create_index("entity_id", unique=True)
+    await db.pois.create_index("categories")
 
 
 async def close() -> None:

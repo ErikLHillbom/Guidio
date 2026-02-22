@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -9,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { POIDetail, PointOfInterest } from '../types';
 
 interface Props {
@@ -37,13 +37,14 @@ function DetailImage({ uri }: { uri: string }) {
     <Image
       source={{ uri }}
       style={styles.heroImage}
-      resizeMode="cover"
+      contentFit="cover"
+      priority="high"
       onError={() => setFailed(true)}
     />
   );
 }
 
-export default function POIDetailView({ poi, detail, detailLoading, onLoadDetail, onClose }: Props) {
+function POIDetailView({ poi, detail, detailLoading, onLoadDetail, onClose }: Props) {
   if (!poi) return null;
 
   return (
@@ -113,6 +114,8 @@ export default function POIDetailView({ poi, detail, detailLoading, onLoadDetail
     </Modal>
   );
 }
+
+export default React.memo(POIDetailView);
 
 const styles = StyleSheet.create({
   backdrop: {

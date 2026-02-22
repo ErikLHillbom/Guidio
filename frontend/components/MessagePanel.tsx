@@ -19,7 +19,7 @@ interface Props {
   messages: Message[];
 }
 
-export default function MessagePanel({ messages }: Props) {
+function MessagePanel({ messages }: Props) {
   const height = useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
   const currentHeight = useRef(COLLAPSED_HEIGHT);
   const [expanded, setExpanded] = useState(false);
@@ -98,6 +98,8 @@ export default function MessagePanel({ messages }: Props) {
     </View>
   );
 }
+
+export default React.memo(MessagePanel);
 
 const styles = StyleSheet.create({
   outer: {

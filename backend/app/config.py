@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     # Search radius (metres) used when querying the database
     default_radius_m: int = 300
 
+    # Maximum number of POIs returned per nearby query
+    max_pois: int = 100
+
     # Minimum distance (metres) the user must move before we fetch new data
     min_move_threshold_m: float = 50
 

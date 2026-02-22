@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
-import { Image as ExpoImage } from 'expo-image';
 import { Coordinates, PointOfInterest } from '../types';
 import { DataService } from '../services/DataService';
 import { isWithinProximity, PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
@@ -17,15 +16,6 @@ import {
 
 const REFETCH_DISTANCE_M = 300;
 const WANDER_DISTANCE_M = 100;
-
-function prefetchImages(pois: PointOfInterest[]) {
-  const urls = pois
-    .map((p) => p.imageUrl)
-    .filter((u): u is string => !!u);
-  if (urls.length > 0) {
-    ExpoImage.prefetch(urls);
-  }
-}
 
 interface UseProximityOptions {
   service: DataService;
@@ -181,9 +171,18 @@ export function useProximity({
 
   const checkProximity = useCallback(
     (coords: Coordinates) => {
+      const latMargin = PROXIMITY_THRESHOLD_METERS / 111_320;
+      const lngMargin =
+        PROXIMITY_THRESHOLD_METERS /
+        (111_320 * Math.cos((coords.latitude * Math.PI) / 180));
+
       const nearby: PointOfInterest[] = [];
       for (const poi of poisRef.current) {
         if (detectedPoiIds.current.has(poi.id)) continue;
+        if (
+          Math.abs(poi.coordinates.latitude - coords.latitude) > latMargin ||
+          Math.abs(poi.coordinates.longitude - coords.longitude) > lngMargin
+        ) continue;
         if (!isWithinProximity(coords, poi.coordinates)) continue;
         detectedPoiIds.current.add(poi.id);
         nearby.push(poi);
@@ -249,7 +248,6 @@ export function useProximity({
         currentBucketRef.current = getBucketKey(pos);
         poisRef.current = active;
         setPois(active);
-        prefetchImages(allPois);
         if (debugMode) setGridLines(getGridLines(pos));
       } catch {
         // Backend unavailable
@@ -268,7 +266,7 @@ export function useProximity({
       updateBucket(pos);
       checkProximity(pos);
       maybeRefetch(pos);
-    }, 300);
+    }, 1000);
   }, [userLocationRef, updateBucket, checkProximity, maybeRefetch]);
 
   const skipCurrent = useCallback(() => {
@@ -318,8 +316,6 @@ export function useProximity({
       currentBucketRef.current = getBucketKey(coords);
       setPois(active);
       poisRef.current = active;
-
-      prefetchImages(allPois);
 
       if (debugMode) setGridLines(getGridLines(coords));
 

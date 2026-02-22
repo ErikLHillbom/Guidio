@@ -12,6 +12,7 @@ from app.models import (
     PoiDetail,
 )
 from app.services.database import (
+    fetch_poi_audio_path,
     fetch_poi_detail,
     fetch_pois_by_category,
     fetch_pois_from_db,
@@ -73,7 +74,7 @@ async def update_location(req: LocationRequest) -> LocationResponse | Response:
 
 
 @router.get("/detail/{entity_id}", response_model=PoiDetail)
-async def get_poi_detail(entity_id: str) -> PoiDetail:
+async def get_poi_detail(entity_id: str, response: Response) -> PoiDetail:
     """Return the text and audio content for a single POI."""
     log.info("GET /detail/%s", entity_id)
     detail = await fetch_poi_detail(entity_id)
@@ -81,6 +82,7 @@ async def get_poi_detail(entity_id: str) -> PoiDetail:
         log.warning("  → 404 POI not found")
         raise HTTPException(status_code=404, detail="POI not found")
     log.info("  → 200 title=%r  has_audio=%s", detail.title, bool(detail.audio_file))
+    response.headers["Cache-Control"] = "public, max-age=3600"
     return detail
 
 
@@ -88,15 +90,15 @@ async def get_poi_detail(entity_id: str) -> PoiDetail:
 async def get_poi_audio(entity_id: str) -> FileResponse:
     """Stream the audio file for a single POI."""
     log.info("GET /audio/%s", entity_id)
-    detail = await fetch_poi_detail(entity_id)
-    if detail is None:
+    audio_file = await fetch_poi_audio_path(entity_id)
+    if audio_file is None:
         log.warning("  → 404 POI not found")
         raise HTTPException(status_code=404, detail="POI not found")
-    if not detail.audio_file:
+    if not audio_file:
         log.warning("  → 404 no audio_file field for this POI")
         raise HTTPException(status_code=404, detail="No audio available for this POI")
 
-    audio_path = FilePath(detail.audio_file)
+    audio_path = FilePath(audio_file)
     if not audio_path.is_file():
         log.warning("  → 404 file missing on disk: %s", audio_path)
         raise HTTPException(status_code=404, detail="Audio file not found on disk")
@@ -106,6 +108,7 @@ async def get_poi_audio(entity_id: str) -> FileResponse:
         path=audio_path,
         media_type="audio/mpeg",
         filename=f"{entity_id}.mp3",
+        headers={"Cache-Control": "public, max-age=86400"},
     )
 
 
