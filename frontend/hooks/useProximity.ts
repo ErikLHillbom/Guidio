@@ -15,7 +15,7 @@ import {
   BucketGridLines,
 } from '../services/bucketService';
 
-const REFETCH_DISTANCE_M = 300;
+const REFETCH_DISTANCE_M = 20;
 
 function prefetchImages(pois: PointOfInterest[]) {
   const urls = pois
@@ -198,7 +198,7 @@ export function useProximity({
       }
       refetchInFlight.current = true;
       try {
-        const allPois = await service.fetchNearbyPOIs(pos, userId);
+        const allPois = await service.fetchNearbyPOIs(pos, userId, true); // force backend fetch
         const index = buildBucketIndex(allPois);
         bucketIndexRef.current = index;
         currentBucketRef.current = '';

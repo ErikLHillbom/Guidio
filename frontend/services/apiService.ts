@@ -69,6 +69,9 @@ export class RealDataService implements DataService {
   }
 
   async fetchNearbyPOIs(coordinates: Coordinates, _userId: string, force?: boolean): Promise<PointOfInterest[]> {
+    // when `force` is false we may return the cached set if still valid;
+    // when the cache is valid we still refrain from calling the backend,
+    // otherwise we fetch and merge the returned POIs into the cache.
     if (!force && this.isPOICacheValid(coordinates)) {
       return this.cachedPois;
     }
@@ -91,10 +94,20 @@ export class RealDataService implements DataService {
     }
 
     const data = await response.json();
-    const pois = (data.points_of_interest as BackendPOI[]).map(mapPOI);
-    this.cachedPois = pois;
+    const newPois = (data.points_of_interest as BackendPOI[]).map(mapPOI);
+
+    // merge fresh results into existing cache rather than replace it
+    const seen = new Set(this.cachedPois.map((p) => p.id));
+    for (const p of newPois) {
+      if (!seen.has(p.id)) {
+        this.cachedPois.push(p);
+      }
+    }
+    // update origin so validity check still works
     this.cacheOrigin = coordinates;
-    return pois;
+
+    // return the combined list (caller may filter further)
+    return this.cachedPois;
   }
 
   async fetchGuideInfo(
