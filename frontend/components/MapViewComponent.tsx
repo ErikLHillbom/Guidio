@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
@@ -9,13 +10,15 @@ import { geodesicDistanceMeters } from '../utils/geo';
 const FAR_DISTANCE_M = 300;
 
 function CalloutImage({ uri }: { uri: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
   return (
     <Image
       source={{ uri }}
       style={styles.calloutImage}
-      onError={() => setFailed(true)}
+      placeholder={require('../assets/poi-placeholder.png')}
+      placeholderContentFit="cover"
+      transition={200}
+      contentFit="cover"
+      cachePolicy="disk"
     />
   );
 }
