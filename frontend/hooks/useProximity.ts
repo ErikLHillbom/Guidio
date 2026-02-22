@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { Image as ExpoImage } from 'expo-image';
 import { Coordinates, PointOfInterest } from '../types';
 import { DataService } from '../services/DataService';
 import { isWithinProximity } from '../services/locationService';
@@ -15,6 +16,15 @@ import {
 } from '../services/bucketService';
 
 const REFETCH_DISTANCE_M = 300;
+
+function prefetchImages(pois: PointOfInterest[]) {
+  const urls = pois
+    .map((p) => p.imageUrl)
+    .filter((u): u is string => !!u);
+  if (urls.length > 0) {
+    ExpoImage.prefetch(urls);
+  }
+}
 
 interface UseProximityOptions {
   service: DataService;
@@ -199,6 +209,7 @@ export function useProximity({
         currentBucketRef.current = getBucketKey(pos);
         poisRef.current = active;
         setPois(active);
+        prefetchImages(allPois);
         if (debugMode) setGridLines(getGridLines(pos));
       } catch {
         // Backend unavailable
@@ -265,6 +276,8 @@ export function useProximity({
       currentBucketRef.current = getBucketKey(coords);
       setPois(active);
       poisRef.current = active;
+
+      prefetchImages(allPois);
 
       if (debugMode) setGridLines(getGridLines(coords));
 
