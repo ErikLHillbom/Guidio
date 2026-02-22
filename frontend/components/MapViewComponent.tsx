@@ -1,17 +1,24 @@
-import React, { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
+import { PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
+import { geodesicDistanceMeters } from '../utils/geo';
+
+const FAR_DISTANCE_M = 300;
 
 function CalloutImage({ uri }: { uri: string }) {
-  const [failed, setFailed] = useState(false);
-  if (failed) return null;
   return (
     <Image
       source={{ uri }}
       style={styles.calloutImage}
-      onError={() => setFailed(true)}
+      placeholder={require('../assets/poi-placeholder.png')}
+      placeholderContentFit="cover"
+      transition={200}
+      contentFit="cover"
+      cachePolicy="disk"
     />
   );
 }
@@ -23,6 +30,7 @@ interface Props {
   queuedIds: Set<string>;
   gridLines: BucketGridLines | null;
   showCustomUserMarker: boolean;
+  mapType?: 'standard' | 'satellite' | 'hybrid';
   onPOIPress?: (poi: PointOfInterest) => void;
 }
 
@@ -39,6 +47,7 @@ export default function MapViewComponent({
   queuedIds,
   gridLines,
   showCustomUserMarker,
+  mapType = 'standard',
   onPOIPress,
 }: Props) {
   const initialRegion = userLocation
@@ -59,6 +68,7 @@ export default function MapViewComponent({
     <MapView
       style={styles.map}
       initialRegion={initialRegion}
+      mapType={mapType}
       showsUserLocation={!showCustomUserMarker}
       showsMyLocationButton={!showCustomUserMarker}
       showsCompass
@@ -77,37 +87,56 @@ export default function MapViewComponent({
           </Marker>
           <Circle
             center={userLocation}
-            radius={30}
+            radius={PROXIMITY_THRESHOLD_METERS}
             fillColor="rgba(0, 122, 255, 0.1)"
             strokeColor="rgba(0, 122, 255, 0.3)"
             strokeWidth={1}
           />
         </>
       )}
-      {pois.map((poi) => (
-        <Marker
-          key={poi.id}
-          coordinate={poi.coordinates}
-          pinColor={getPinColor(poi.id, visitedIds, queuedIds)}
-        >
-          <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
-            <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>{poi.name}</Text>
-              {poi.imageUrl ? <CalloutImage uri={poi.imageUrl} /> : null}
-              {poi.description && (
-                <Text style={styles.calloutDescription}>{poi.description}</Text>
-              )}
-              {visitedIds.has(poi.id) && (
-                <Text style={styles.calloutVisited}>Visited</Text>
-              )}
-              {!visitedIds.has(poi.id) && queuedIds.has(poi.id) && (
-                <Text style={styles.calloutQueued}>In queue...</Text>
-              )}
-              <Text style={styles.calloutTapHint}>Tap for details</Text>
-            </View>
-          </Callout>
-        </Marker>
-      ))}
+      {pois.map((poi) => {
+        const color = getPinColor(poi.id, visitedIds, queuedIds);
+        const distance = userLocation
+          ? geodesicDistanceMeters(userLocation, poi.coordinates)
+          : 0;
+        const isFar = distance > FAR_DISTANCE_M;
+
+        return (
+          <Marker
+            key={poi.id}
+            coordinate={poi.coordinates}
+            anchor={isFar ? { x: 0.5, y: 0.5 } : { x: 0.5, y: 1 }}
+            tracksViewChanges={false}
+          >
+            {isFar ? (
+              <View style={styles.farDot} />
+            ) : (
+              <View style={styles.pinWrapper}>
+                <View style={[styles.pinHead, { backgroundColor: color }]}>
+                  <View style={styles.pinDot} />
+                </View>
+                <View style={[styles.pinTail, { borderTopColor: color }]} />
+              </View>
+            )}
+            <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>{poi.name}</Text>
+                {poi.imageUrl ? <CalloutImage uri={poi.imageUrl} /> : null}
+                {poi.description && (
+                  <Text style={styles.calloutDescription}>{poi.description}</Text>
+                )}
+                {visitedIds.has(poi.id) && (
+                  <Text style={styles.calloutVisited}>Visited</Text>
+                )}
+                {!visitedIds.has(poi.id) && queuedIds.has(poi.id) && (
+                  <Text style={styles.calloutQueued}>In queue...</Text>
+                )}
+                <Text style={styles.calloutTapHint}>Tap for details</Text>
+              </View>
+            </Callout>
+          </Marker>
+        );
+      })}
       {gridLines?.horizontalLines.map((line, i) => (
         <Polyline
           key={`grid-h-${i}`}
@@ -152,6 +181,56 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: '#007AFF',
     borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  customPin: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  pinWrapper: {
+    alignItems: 'center',
+    width: 30,
+    height: 40,
+  },
+  pinHead: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  pinDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ffffff',
+  },
+  pinTail: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 12,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -2,
+  },
+  farDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#9E9E9E',
+    borderWidth: 1,
     borderColor: '#ffffff',
   },
   callout: {

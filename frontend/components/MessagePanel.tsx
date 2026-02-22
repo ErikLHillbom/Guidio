@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   PanResponder,
   Pressable,
   ScrollView,
@@ -10,9 +11,9 @@ import {
 } from 'react-native';
 import { Message } from '../types';
 
-const COLLAPSED_HEIGHT = 127;
+const COLLAPSED_HEIGHT = 42;
 const EXPANDED_HEIGHT = 408;
-const SNAP_THRESHOLD = (COLLAPSED_HEIGHT + EXPANDED_HEIGHT) / 2;
+const SNAP_THRESHOLD = EXPANDED_HEIGHT / 3;
 
 interface Props {
   messages: Message[];
@@ -25,10 +26,11 @@ export default function MessagePanel({ messages }: Props) {
   const scrollRef = useRef<ScrollView>(null);
 
   const snapTo = (target: number) => {
-    Animated.spring(height, {
+    Animated.timing(height, {
       toValue: target,
+      duration: 250,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: false,
-      bounciness: 4,
     }).start();
     currentHeight.current = target;
     setExpanded(target === EXPANDED_HEIGHT);

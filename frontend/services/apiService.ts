@@ -12,6 +12,7 @@ interface BackendPOI {
   longitude: number;
   categories: string[];
   image_url: string | null;
+  summary: string | null;
 }
 
 interface BackendDetailResponse {
@@ -29,6 +30,7 @@ function mapPOI(raw: BackendPOI): PointOfInterest {
     coordinates: { latitude: raw.latitude, longitude: raw.longitude },
     imageUrl: raw.image_url ?? undefined,
     categories: raw.categories,
+    summary: raw.summary ?? undefined,
   };
 }
 
@@ -66,8 +68,11 @@ export class RealDataService implements DataService {
     return data;
   }
 
-  async fetchNearbyPOIs(coordinates: Coordinates, _userId: string): Promise<PointOfInterest[]> {
-    if (this.isPOICacheValid(coordinates)) {
+  async fetchNearbyPOIs(coordinates: Coordinates, _userId: string, force?: boolean): Promise<PointOfInterest[]> {
+    // when `force` is false we may return the cached set if still valid;
+    // when the cache is valid we still refrain from calling the backend,
+    // otherwise we fetch and merge the returned POIs into the cache.
+    if (!force && this.isPOICacheValid(coordinates)) {
       return this.cachedPois;
     }
 
@@ -77,6 +82,7 @@ export class RealDataService implements DataService {
       body: JSON.stringify({
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
+        force: force ?? false,
       }),
     });
 
@@ -88,10 +94,20 @@ export class RealDataService implements DataService {
     }
 
     const data = await response.json();
-    const pois = (data.points_of_interest as BackendPOI[]).map(mapPOI);
-    this.cachedPois = pois;
+    const newPois = (data.points_of_interest as BackendPOI[]).map(mapPOI);
+
+    // merge fresh results into existing cache rather than replace it
+    const seen = new Set(this.cachedPois.map((p) => p.id));
+    for (const p of newPois) {
+      if (!seen.has(p.id)) {
+        this.cachedPois.push(p);
+      }
+    }
+    // update origin so validity check still works
     this.cacheOrigin = coordinates;
-    return pois;
+
+    // return the combined list (caller may filter further)
+    return this.cachedPois;
   }
 
   async fetchGuideInfo(

@@ -6,6 +6,7 @@ class LocationRequest(BaseModel):
 
     latitude: float = Field(..., ge=-90, le=90, description="User latitude")
     longitude: float = Field(..., ge=-180, le=180, description="User longitude")
+    force: bool = Field(False, description="Skip movement check and always return fresh data")
 
 
 class PointOfInterest(BaseModel):
@@ -17,6 +18,7 @@ class PointOfInterest(BaseModel):
     longitude: float
     categories: list[str] = []
     image_url: str | None = None
+    summary: str | None = None
 
 
 class LocationResponse(BaseModel):

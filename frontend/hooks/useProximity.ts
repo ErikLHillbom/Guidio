@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { Image as ExpoImage } from 'expo-image';
 import { Coordinates, PointOfInterest } from '../types';
 import { DataService } from '../services/DataService';
 import { isWithinProximity } from '../services/locationService';
@@ -14,7 +15,16 @@ import {
   BucketGridLines,
 } from '../services/bucketService';
 
-const REFETCH_DISTANCE_M = 300;
+const REFETCH_DISTANCE_M = 20;
+
+function prefetchImages(pois: PointOfInterest[]) {
+  const urls = pois
+    .map((p) => p.imageUrl)
+    .filter((u): u is string => !!u);
+  if (urls.length > 0) {
+    ExpoImage.prefetch(urls);
+  }
+}
 
 interface UseProximityOptions {
   service: DataService;
@@ -188,7 +198,7 @@ export function useProximity({
       }
       refetchInFlight.current = true;
       try {
-        const allPois = await service.fetchNearbyPOIs(pos, userId);
+        const allPois = await service.fetchNearbyPOIs(pos, userId, true); // force backend fetch
         const index = buildBucketIndex(allPois);
         bucketIndexRef.current = index;
         currentBucketRef.current = '';
@@ -199,6 +209,7 @@ export function useProximity({
         currentBucketRef.current = getBucketKey(pos);
         poisRef.current = active;
         setPois(active);
+        prefetchImages(allPois);
         if (debugMode) setGridLines(getGridLines(pos));
       } catch {
         // Backend unavailable
@@ -252,10 +263,10 @@ export function useProximity({
       setQueuedIds(new Set());
       bucketIndexRef.current = null;
       currentBucketRef.current = '';
+      lastFetchOrigin.current = null;
       setGridLines(null);
-      service.clearCache();
 
-      const allPois = await service.fetchNearbyPOIs(coords, userId);
+      const allPois = await service.fetchNearbyPOIs(coords, userId, true);
       const index = buildBucketIndex(allPois);
       bucketIndexRef.current = index;
       lastFetchOrigin.current = coords;
@@ -265,6 +276,8 @@ export function useProximity({
       currentBucketRef.current = getBucketKey(coords);
       setPois(active);
       poisRef.current = active;
+
+      prefetchImages(allPois);
 
       if (debugMode) setGridLines(getGridLines(coords));
 

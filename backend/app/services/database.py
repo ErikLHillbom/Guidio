@@ -43,6 +43,7 @@ async def fetch_pois_from_db(
                 longitude=doc["location"]["coordinates"][0],
                 categories=doc.get("categories", []),
                 image_url=doc.get("image_url"),
+                summary=doc.get("summary"),
             )
         )
     return pois

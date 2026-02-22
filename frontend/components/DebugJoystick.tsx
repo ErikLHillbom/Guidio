@@ -6,7 +6,7 @@ import { offsetCoordinates } from '../utils/geo';
 const BASE_SIZE = 120;
 const KNOB_SIZE = 44;
 const MAX_OFFSET = (BASE_SIZE - KNOB_SIZE) / 2;
-const METERS_PER_TICK = 1.5;
+const METERS_PER_TICK = 3;
 const TICK_INTERVAL_MS = 40;
 
 interface Props {
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 36,
-    left: 16,
+    right: 16,
     alignItems: 'center',
   },
   containerDisabled: {
