@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 import MapView, { Callout, Circle, Marker, Polyline } from 'react-native-maps';
 import { Coordinates, PointOfInterest } from '../types';
 import { BucketGridLines } from '../services/bucketService';
+import { PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
 
 function CalloutImage({ uri }: { uri: string }) {
   const [failed, setFailed] = useState(false);
@@ -77,37 +78,42 @@ export default function MapViewComponent({
           </Marker>
           <Circle
             center={userLocation}
-            radius={30}
+            radius={PROXIMITY_THRESHOLD_METERS}
             fillColor="rgba(0, 122, 255, 0.1)"
             strokeColor="rgba(0, 122, 255, 0.3)"
             strokeWidth={1}
           />
         </>
       )}
-      {pois.map((poi) => (
-        <Marker
-          key={poi.id}
-          coordinate={poi.coordinates}
-          pinColor={getPinColor(poi.id, visitedIds, queuedIds)}
-        >
-          <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
-            <View style={styles.callout}>
-              <Text style={styles.calloutTitle}>{poi.name}</Text>
-              {poi.imageUrl ? <CalloutImage uri={poi.imageUrl} /> : null}
-              {poi.description && (
-                <Text style={styles.calloutDescription}>{poi.description}</Text>
-              )}
-              {visitedIds.has(poi.id) && (
-                <Text style={styles.calloutVisited}>Visited</Text>
-              )}
-              {!visitedIds.has(poi.id) && queuedIds.has(poi.id) && (
-                <Text style={styles.calloutQueued}>In queue...</Text>
-              )}
-              <Text style={styles.calloutTapHint}>Tap for details</Text>
-            </View>
-          </Callout>
-        </Marker>
-      ))}
+      {pois.map((poi) => {
+        const color = getPinColor(poi.id, visitedIds, queuedIds);
+        return (
+          <Marker
+            key={poi.id}
+            coordinate={poi.coordinates}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+          >
+            <View style={[styles.customPin, { backgroundColor: color }]} />
+            <Callout tooltip={false} onPress={() => onPOIPress?.(poi)}>
+              <View style={styles.callout}>
+                <Text style={styles.calloutTitle}>{poi.name}</Text>
+                {poi.imageUrl ? <CalloutImage uri={poi.imageUrl} /> : null}
+                {poi.description && (
+                  <Text style={styles.calloutDescription}>{poi.description}</Text>
+                )}
+                {visitedIds.has(poi.id) && (
+                  <Text style={styles.calloutVisited}>Visited</Text>
+                )}
+                {!visitedIds.has(poi.id) && queuedIds.has(poi.id) && (
+                  <Text style={styles.calloutQueued}>In queue...</Text>
+                )}
+                <Text style={styles.calloutTapHint}>Tap for details</Text>
+              </View>
+            </Callout>
+          </Marker>
+        );
+      })}
       {gridLines?.horizontalLines.map((line, i) => (
         <Polyline
           key={`grid-h-${i}`}
@@ -151,6 +157,13 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: '#007AFF',
+    borderWidth: 2,
+    borderColor: '#ffffff',
+  },
+  customPin: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: '#ffffff',
   },

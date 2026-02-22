@@ -252,8 +252,8 @@ export function useProximity({
       setQueuedIds(new Set());
       bucketIndexRef.current = null;
       currentBucketRef.current = '';
+      lastFetchOrigin.current = null;
       setGridLines(null);
-      service.clearCache();
 
       const allPois = await service.fetchNearbyPOIs(coords, userId);
       const index = buildBucketIndex(allPois);
