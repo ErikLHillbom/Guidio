@@ -53,3 +53,12 @@ When you come so close to a pin that it is "nearby" (turns green), you should pl
 Use expo-audio instead of expo-av
 
 Have local urls/paths for the audio/transcription for the pins. This is how they are "stored" in the backend.
+
+Take a good look at the entire codebase, and plan optimization improvements.
+
+It seems like the removal of duplicates in the backend needs to be done many times. Can't we do it permanently somehow? Like, save the result?
+
+How to make it agentic:
+- Answer questions. "What happens here?" --> News database, other sources, automatic booking, et.c.
+
+When the user has wandered a significant distance from a landmark (>100m in addition to the minimum radius), the AI should now to end its explanation. Based on silent periods in the voiceover, find good times to pause. Play a "ping" sound when the user loses connection with a point of interest.

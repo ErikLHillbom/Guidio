@@ -21,6 +21,8 @@ interface BackendDetailResponse {
   text: string | null;
   text_audio: string | null;
   audio_file: string | null;
+  audio_duration_ms: number | null;
+  audio_breakpoints_ms: number[];
 }
 
 function mapPOI(raw: BackendPOI): PointOfInterest {
@@ -110,6 +112,7 @@ export class RealDataService implements DataService {
       transcription: detail.text_audio ?? '',
       audioUrl: detail.audio_file ? this.audioUrl(poiId) : '',
       imageUrl: '',
+      audioBreakpointsMs: detail.audio_breakpoints_ms ?? [],
     };
   }
 

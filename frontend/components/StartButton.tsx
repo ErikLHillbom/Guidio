@@ -5,12 +5,15 @@ interface Props {
   active: boolean;
   loading: boolean;
   audioProgress: number;
+  wanderingAway: boolean;
   onPress: () => void;
 }
 
 const BAR_COUNT = 12;
 const DARK_BLUE = '#1b24d3';
 const LIGHT_BLUE = '#5b6aff';
+const AMBER = '#d97706';
+const AMBER_LIGHT = '#f59e0b';
 
 function VoiceBars({ animate }: { animate: boolean }) {
   const animations = useRef(
@@ -71,12 +74,15 @@ function VoiceBars({ animate }: { animate: boolean }) {
   );
 }
 
-export default function StartButton({ active, loading, audioProgress, onPress }: Props) {
+export default function StartButton({ active, loading, audioProgress, wanderingAway, onPress }: Props) {
   const isPlaying = active && audioProgress > 0;
+
+  const buttonBg = wanderingAway ? AMBER_LIGHT : active ? LIGHT_BLUE : DARK_BLUE;
+  const fillBg = wanderingAway ? AMBER : DARK_BLUE;
 
   return (
     <Pressable
-      style={[styles.button, active && styles.buttonActive]}
+      style={[styles.button, { backgroundColor: buttonBg }]}
       onPress={onPress}
     >
       {isPlaying && (
@@ -84,13 +90,17 @@ export default function StartButton({ active, loading, audioProgress, onPress }:
           <View
             style={[
               styles.progressFill,
-              { width: `${Math.min(audioProgress * 100, 100)}%` },
+              { width: `${Math.min(audioProgress * 100, 100)}%`, backgroundColor: fillBg },
             ]}
           />
         </View>
       )}
       {isPlaying ? (
-        <VoiceBars animate={true} />
+        wanderingAway ? (
+          <Animated.Text style={styles.label}>ENDING...</Animated.Text>
+        ) : (
+          <VoiceBars animate={true} />
+        )
       ) : (
         <Animated.Text style={styles.label}>{active ? 'STOP' : 'START'}</Animated.Text>
       )}
@@ -113,9 +123,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  buttonActive: {
-    backgroundColor: LIGHT_BLUE,
   },
   progressFill: {
     position: 'absolute',

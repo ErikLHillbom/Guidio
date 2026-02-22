@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -44,6 +45,16 @@ def _to_doc(data: dict) -> dict:
             print(f"  Attached audio file for {entity_id}: {mp3_path}")
         else:
             doc["audio_file"] = None
+
+        breaks_path = AUDIO_OUTPUT_DIR / f"{entity_id}.breaks.json"
+        if breaks_path.exists():
+            breaks: dict[str, Any] = json.loads(breaks_path.read_text(encoding="utf-8"))
+            doc["audio_duration_ms"] = breaks.get("duration_ms")
+            doc["audio_breakpoints_ms"] = breaks.get("breakpoints_ms", [])
+            print(f"  Attached {len(doc['audio_breakpoints_ms'])} breakpoints for {entity_id}")
+        else:
+            doc["audio_duration_ms"] = None
+            doc["audio_breakpoints_ms"] = []
 
     return doc
 

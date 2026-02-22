@@ -44,3 +44,5 @@ class PoiDetail(BaseModel):
     text: str | None = None
     text_audio: str | None = None
     audio_file: str | None = None
+    audio_duration_ms: int | None = None
+    audio_breakpoints_ms: list[int] = []

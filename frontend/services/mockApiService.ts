@@ -82,6 +82,7 @@ export class MockDataService implements DataService {
       transcription,
       audioUrl: asset.localUri ?? asset.uri,
       imageUrl: poi?.imageUrl ?? '',
+      audioBreakpointsMs: [5000, 15000, 30000, 45000, 60000],
     };
   }
 

@@ -3,7 +3,7 @@ import { AudioPlayer, createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import { Image as ExpoImage } from 'expo-image';
 import { Coordinates, PointOfInterest } from '../types';
 import { DataService } from '../services/DataService';
-import { isWithinProximity } from '../services/locationService';
+import { isWithinProximity, PROXIMITY_THRESHOLD_METERS } from '../services/locationService';
 import { geodesicDistanceMeters } from '../utils/geo';
 import {
   getBucketKey,
@@ -16,6 +16,7 @@ import {
 } from '../services/bucketService';
 
 const REFETCH_DISTANCE_M = 300;
+const WANDER_DISTANCE_M = 100;
 
 function prefetchImages(pois: PointOfInterest[]) {
   const urls = pois
@@ -46,6 +47,7 @@ export function useProximity({
   const [queuedIds, setQueuedIds] = useState<Set<string>>(new Set());
   const [gridLines, setGridLines] = useState<BucketGridLines | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
+  const [wanderingAway, setWanderingAway] = useState(false);
 
   useEffect(() => {
     setAudioModeAsync({ playsInSilentMode: true });
@@ -63,8 +65,14 @@ export function useProximity({
   const progressPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastFetchOrigin = useRef<Coordinates | null>(null);
   const refetchInFlight = useRef(false);
+  const wanderTargetMs = useRef<number | null>(null);
 
-  const playAudio = useCallback((uri: string): Promise<void> => {
+  const playAudio = useCallback((
+    uri: string,
+    breakpointsMs: number[],
+    poiCoordinates: Coordinates,
+    onWanderingAway?: () => void,
+  ): Promise<void> => {
     return new Promise<void>((resolve) => {
       try {
         if (progressPollRef.current) {
@@ -76,6 +84,8 @@ export function useProximity({
           currentPlayer.current = null;
         }
         setAudioProgress(0);
+        setWanderingAway(false);
+        wanderTargetMs.current = null;
 
         const player = createAudioPlayer(uri);
         currentPlayer.current = player;
@@ -85,13 +95,37 @@ export function useProximity({
           if (player.playing) hasStartedPlaying = true;
 
           if (player.isLoaded && player.duration > 0) {
+            const currentTimeMs = player.currentTime * 1000;
             setAudioProgress(player.currentTime / player.duration);
+
+            if (wanderTargetMs.current !== null) {
+              if (currentTimeMs >= wanderTargetMs.current) {
+                player.pause();
+              }
+            } else {
+              const userPos = userLocationRef.current;
+              if (userPos) {
+                const dist = geodesicDistanceMeters(userPos, poiCoordinates);
+                if (dist > PROXIMITY_THRESHOLD_METERS + WANDER_DISTANCE_M) {
+                  const nextBp = breakpointsMs.find(bp => bp > currentTimeMs);
+                  if (nextBp !== undefined) {
+                    wanderTargetMs.current = nextBp;
+                    setWanderingAway(true);
+                    onWanderingAway?.();
+                  } else {
+                    player.pause();
+                  }
+                }
+              }
+            }
           }
 
           if (hasStartedPlaying && !player.playing) {
             clearInterval(progressPollRef.current!);
             progressPollRef.current = null;
             setAudioProgress(0);
+            setWanderingAway(false);
+            wanderTargetMs.current = null;
             player.remove();
             if (currentPlayer.current === player) currentPlayer.current = null;
             resolve();
@@ -101,10 +135,11 @@ export function useProximity({
         player.play();
       } catch {
         setAudioProgress(0);
+        setWanderingAway(false);
         resolve();
       }
     });
-  }, []);
+  }, [userLocationRef]);
 
   const markVisited = useCallback((poiId: string) => {
     visitedPoiIds.current.add(poiId);
@@ -127,7 +162,12 @@ export function useProximity({
           );
           addMessage(guide.transcription);
           if (guide.audioUrl) {
-            await playAudio(guide.audioUrl);
+            await playAudio(
+              guide.audioUrl,
+              guide.audioBreakpointsMs,
+              poi.coordinates,
+              () => addMessage(`Moving away from ${poi.name}\u2026 ending at next pause.`),
+            );
           }
         } catch {
           addMessage(`Unable to load guide info for ${poi.name}.`);
@@ -251,6 +291,8 @@ export function useProximity({
       currentPlayer.current = null;
     }
     setAudioProgress(0);
+    setWanderingAway(false);
+    wanderTargetMs.current = null;
     guideQueue.current = [];
     guideRunning.current = false;
   }, []);
@@ -309,6 +351,7 @@ export function useProximity({
     queuedIds,
     gridLines,
     audioProgress,
+    wanderingAway,
     loadPOIs,
     rebuildIndex,
     startInterval,

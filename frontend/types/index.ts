@@ -19,6 +19,7 @@ export interface GuideResponse {
   transcription: string;
   audioUrl: string;
   imageUrl: string;
+  audioBreakpointsMs: number[];
 }
 
 export interface POIDetail {

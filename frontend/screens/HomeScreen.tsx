@@ -41,6 +41,7 @@ export default function HomeScreen() {
     queuedIds,
     gridLines,
     audioProgress,
+    wanderingAway,
     loadPOIs,
     rebuildIndex,
     startInterval,
@@ -180,6 +181,7 @@ export default function HomeScreen() {
           active={tracking}
           loading={startLoading}
           audioProgress={audioProgress}
+          wanderingAway={wanderingAway}
           onPress={handleStart}
         />
       </View>

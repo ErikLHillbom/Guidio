@@ -54,7 +54,15 @@ async def fetch_poi_detail(entity_id: str) -> PoiDetail | None:
     db = get_db()
     doc = await db.pois.find_one(
         {"entity_id": entity_id},
-        {"entity_id": 1, "title": 1, "text": 1, "text_audio": 1, "audio_file": 1},
+        {
+            "entity_id": 1,
+            "title": 1,
+            "text": 1,
+            "text_audio": 1,
+            "audio_file": 1,
+            "audio_duration_ms": 1,
+            "audio_breakpoints_ms": 1,
+        },
     )
     if doc is None:
         return None
@@ -64,6 +72,8 @@ async def fetch_poi_detail(entity_id: str) -> PoiDetail | None:
         text=doc.get("text"),
         text_audio=doc.get("text_audio"),
         audio_file=doc.get("audio_file"),
+        audio_duration_ms=doc.get("audio_duration_ms"),
+        audio_breakpoints_ms=doc.get("audio_breakpoints_ms", []),
     )
 
 
